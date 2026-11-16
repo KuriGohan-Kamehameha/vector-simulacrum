@@ -1,0 +1,71 @@
+control: 57 tests named by the arms pass on an untouched copy
+neutral (docstring reworded): SURVIVED as required; 124 ran, 0 skipped
+arm  1 any provenance accepted: CAUGHT
+arm  2 assumed value may lack a range: CAUGHT
+arm  3 value may sit outside its range: CAUGHT
+arm  4 sampling ignores the seed: CAUGHT
+arm  5 wheel radius typed by hand: CAUGHT
+arm  6 tread friction typed by hand: CAUGHT
+arm  7 table length typed by hand: CAUGHT
+arm  8 left and right front cliff sensors swapped: CAUGHT
+arm  9 forward range sensor not tilted: CAUGHT
+arm 10 centre of mass ignores the moving parts: CAUGHT
+arm 11 lift height drops the shoulder height: CAUGHT
+arm 12 cliff reaction never starts: CAUGHT
+arm 13 cliff reaction also runs at the override level: CAUGHT
+arm 14 back-up distance halved: CAUGHT
+arm 15 reaction leaves control with the SDK: CAUGHT
+arm 16 no pause before backing away: CAUGHT
+arm 17 straight drive ends 10 mm early: CAUGHT
+arm 18 turn direction reversed: CAUGHT
+arm 19 command delay ignored: CAUGHT
+arm 20 state sent every control tick: CAUGHT
+arm 21 wheel direction read from the model: CAUGHT
+arm 22 reported wheel speed keeps its fraction: CAUGHT
+arm 23 forward range has no noise: CAUGHT
+arm 24 gyro bias dropped: CAUGHT
+arm 25 sensor noise ignores its seed: CAUGHT
+arm 26 head angle reported finer than one encoder count: CAUGHT
+arm 27 encoder scale without the firmware's 0.96 factor: CAUGHT
+arm 28 encoder never reads zero: CAUGHT
+arm 29 encoder follows the direction of travel: CAUGHT
+arm 30 feedforward line dropped from the speed loop: CAUGHT
+arm 31 power applied against the commanded direction: CAUGHT
+arm 32 a stop command keeps the motor powered: CAUGHT
+arm 33 tread motor has no friction: CAUGHT
+arm 34 stall torque typed by hand: CAUGHT
+arm 35 state period back at the firmware's 30 ms: CAUGHT
+arm 36 gyro noise back at the datasheet's figure: CAUGHT
+arm 37 cliff back-up back at the assumed 40 mm: CAUGHT
+arm 38 state interval taken as the mean of every other row: CAUGHT
+arm 39 a fit may be filed without citing the recording: CAUGHT
+arm 40 replay sends the wheel command 200 ms late: CAUGHT
+arm 41 replay never stops the treads: CAUGHT
+arm 42 replay compares the left record with the right tread: CAUGHT
+arm 43 replay compares the gyro in the wrong unit: CAUGHT
+arm 44 head and lift commands act without their delay: CAUGHT
+arm 45 head turns as fast as it is asked to: CAUGHT
+arm 46 head starts away from where it was posed and travels there: CAUGHT
+arm 47 forward range accepts readings below its minimum: CAUGHT
+arm 48 start pose depends on the clock: CAUGHT
+arm 49 falling is never reported: CAUGHT
+arm 50 a drop within sensor reach is not a cliff: CAUGHT
+arm 51 observation leaks the true position: CAUGHT
+arm 52 action not held to the wheel speed limit: CAUGHT
+arm 53 policy steps every control tick: CAUGHT
+arm 54 domain randomisation switched off: CAUGHT
+arm 55 one assumed parameter left out of the randomisation: CAUGHT
+arm 56 a fall is treated as a time-out: CAUGHT
+arm 57 no penalty for falling: CAUGHT
+arm 58 a cliff reaction is blamed on the policy: CAUGHT
+arm 59 reward ignores the turn rate: CAUGHT
+arm 60 pool ignores its seed: CAUGHT
+arm 61 more than four worker processes allowed: CAUGHT
+arm 62 a finished environment is not reset: CAUGHT
+arm 63 falls reported to PPO as time-outs: CAUGHT
+arm 64 the torch-free runner always reports success: CAUGHT
+arm 65 the torch-free runner imports torch: CAUGHT
+arm 66 the recorded torch actions are not the policy's: CAUGHT
+arm 67 a policy for another observation layout is accepted: CAUGHT
+mutation result: 67 of 67 arms caught, 0 survived, 0 set-up errors, 0 not run (need MuJoCo and the training packages); control passed; neutral change survived
+mutate rc=0

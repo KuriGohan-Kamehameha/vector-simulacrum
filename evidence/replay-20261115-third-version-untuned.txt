@@ -1,0 +1,22 @@
+wheel segments the fit used: score 0.456 (mean error as a fraction of each segment's scale)
+  segment        samples  wheel speed rmse mm/s  (of command)  gyro z rmse deg/s
+  spin_ccw_30         58                   12.4          0.41               17.5
+  spin_cw_30          57                   12.0          0.40               16.2
+  spin_ccw_100        41                   24.2          0.24               32.7
+  spin_cw_100         41                   26.7          0.27               41.0
+  back_40             27                   13.4          0.34                  -
+  forward_40          27                   13.2          0.33                  -
+wheel segments held out: score 0.399 (mean error as a fraction of each segment's scale)
+  segment        samples  wheel speed rmse mm/s  (of command)  gyro z rmse deg/s
+  spin_ccw_60         57                   23.1          0.38               31.3
+  spin_cw_60          57                   24.7          0.41               35.3
+  back_80             21                   14.9          0.19                  -
+  forward_80          22                   13.3          0.17                  -
+head and lift segments the fit used: score 0.247 (mean error as a fraction of the joint's range)
+  head_2              21 samples  rmse 15.1 deg
+  head_4              21 samples  rmse 6.4 deg
+  lift_1              21 samples  rmse 25.2 mm
+head and lift segments held out: score 0.369 (mean error as a fraction of the joint's range)
+  head_3              21 samples  rmse 20.1 deg
+  lift_2              21 samples  rmse 26.3 mm
+REPLAY {"fit_servos": {"score": 0.2468, "segments": [{"angle_rmse_deg": 15.079836350598034, "kind": "head", "label": "head_2", "n": 21}, {"angle_rmse_deg": 6.403931646937516, "kind": "head", "label": "head_4", "n": 21}, {"height_rmse_mm": 25.178051512795548, "kind": "lift", "label": "lift_1", "n": 21}]}, "fit_wheels": {"score": 0.4556, "segments": [{"command_mmps": 30.0, "gyro_rmse_dps": 17.483591064562006, "is_spin": true, "kind": "wheels", "label": "spin_ccw_30", "n": 58, "wheel_rmse_mmps": 12.38289977737653}, {"command_mmps": 30.0, "gyro_rmse_dps": 16.207179089844576, "is_spin": true, "kind": "wheels", "label": "spin_cw_30", "n": 57, "wheel_rmse_mmps": 11.97292266712612}, {"command_mmps": 100.0, "gyro_rmse_dps": 32.70496976905146, "is_spin": true, "kind": "wheels", "label": "spin_ccw_100", "n": 41, "wheel_rmse_mmps": 24.234625500938357}, {"command_mmps": 100.0, "gyro_rmse_dps": 40.97605447329429, "is_spin": true, "kind": "wheels", "label": "spin_cw_100", "n": 41, "wheel_rmse_mmps": 26.735378953829663}, {"command_mmps": 40.0, "gyro_rmse_dps": 6.43175740065146, "is_spin": false, "kind": "wheels", "label": "back_40", "n": 27, "wheel_rmse_mmps": 13.408814127143993}, {"command_mmps": 40.0, "gyro_rmse_dps": 1.4928522030284643, "is_spin": false, "kind": "wheels", "label": "forward_40", "n": 27, "wheel_rmse_mmps": 13.214750456578043}]}, "hold_servos": {"score": 0.369, "segments": [{"angle_rmse_deg": 20.11569650538351, "kind": "head", "label": "head_3", "n": 21}, {"height_rmse_mm": 26.26220087744668, "kind": "lift", "label": "lift_2", "n": 21}]}, "hold_wheels": {"score": 0.3989, "segments": [{"command_mmps": 60.0, "gyro_rmse_dps": 31.259443850590596, "is_spin": true, "kind": "wheels", "label": "spin_ccw_60", "n": 57, "wheel_rmse_mmps": 23.083942926905525}, {"command_mmps": 60.0, "gyro_rmse_dps": 35.2871689500368, "is_spin": true, "kind": "wheels", "label": "spin_cw_60", "n": 57, "wheel_rmse_mmps": 24.736151539446393}, {"command_mmps": 80.0, "gyro_rmse_dps": 7.0549999053617976, "is_spin": false, "kind": "wheels", "label": "back_80", "n": 21, "wheel_rmse_mmps": 14.944341180973263}, {"command_mmps": 80.0, "gyro_rmse_dps": 1.4852940206573815, "is_spin": false, "kind": "wheels", "label": "forward_80", "n": 22, "wheel_rmse_mmps": 13.318647214952561}]}}

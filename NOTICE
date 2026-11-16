@@ -1,0 +1,16 @@
+vector-simulacrum
+Copyright (c) 2026 PiSCES - The Piranesi-Satraj Composite Expert System.
+
+Code is licensed under the Mozilla Public License 2.0; see LICENSE.
+Documentation and recorded data (README.md, parameters.json, evidence/) are
+licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+Attribution string: "PiSCES - The Piranesi-Satraj Composite Expert System".
+
+This project is not affiliated with Anki or Digital Dream Labs; Vector is
+their product. Physical constants are cited to their published sources in
+parameters.json. No third-party source files or assets are included.
+
+In this published copy the robot's serial number and name, host names and
+personal names were removed. The recorder scripts read the serial from
+VECTOR_SERIAL and run_in_ct.sh reads its hosts from CAULDRON_JUMP_HOST and
+CAULDRON_NODE.

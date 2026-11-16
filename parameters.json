@@ -1,0 +1,291 @@
+{
+  "schema": "vector-simulacrum-parameters/1",
+  "robot": "Anki / Digital Dream Labs Vector",
+  "read_on": "2026-11-14",
+  "frame": "Robot frame: origin on the ground under the centre of the front axle; x forward, y left, z up. Lengths in mm unless the unit says otherwise.",
+  "provenance_classes": {
+    "measured": "Read directly off a recording of a real Vector made by this household (source REC), with no model in between. simulacrum/recording.py recomputes each one from the recording's files. Must cite REC. One robot, one run: a measured value is a fact about that run, not about every Vector.",
+    "fitted": "Chosen by a fit to the recording (source REC): by fit_recording.py so that the model reproduces named segments, or by simulacrum/imu_fit.py for the accelerometer's steady offsets. A fit is not a measurement: it depends on the shape of what was fitted and, for fit_recording.py, on the assumed values in place when it ran. The source says what it was fitted to and what was held out. Must cite REC and carry low and high.",
+    "manual": "Stated in the Vector Technical Reference Manual (source TRM).",
+    "sdk": "Published by the vendor in software, or fixed in household SDK-level code. source_kind says which: vendor_firmware (released robot source), vendor_webots_model (Anki's own Webots simulation model), household_code (limits in vector-slam-maze). The vendor marks several of these as approximate; that is carried in note.",
+    "assumed": "A property of the robot that the author set with no source that states it. Always carries low and high for randomisation. Each one is a measurement still to be taken.",
+    "chosen": "A setting of the scene or of the solver (kind scene or numeric): table size, time step, contact stiffness. Not a claim about the robot, so there is no real value to find; the solver ones are checked for convergence instead."
+  },
+  "sources": {
+    "TRM": {
+      "what": "Vector Technical Reference Manual, 2021.02.14",
+      "url": "https://randym32.github.io/Vector-TRM.pdf",
+      "cited_as": "section number, then the line in the extracted text trm.txt (26,991 lines)"
+    },
+    "FW": {
+      "what": "robot/include/anki/cozmo/shared/cozmoConfig.h, namespace Anki::Vector",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/include/anki/cozmo/shared/cozmoConfig.h",
+      "sha256": "50a02ad3004b5d6c3b51cf2e22b3b38ffe7b1e4b5628769bc6db30823e0bc1b3"
+    },
+    "WEBOTS": {
+      "what": "simulator/protos/CozmoBot2.proto, Anki's Webots model of the robot",
+      "url": "https://raw.githubusercontent.com/digital-dream-labs/vector/main/simulator/protos/CozmoBot2.proto",
+      "sha256": "34a15e443ece73541a04f7c0c2729723b18b0514ce6b6df35e6296320144fb14"
+    },
+    "WEBOTS_IMU": {
+      "what": "simulator/protos/CozmoIMU.proto",
+      "url": "https://raw.githubusercontent.com/digital-dream-labs/vector/main/simulator/protos/CozmoIMU.proto",
+      "sha256": "1f7f17c8ba6956b19e055460003c81ff2bfad4b685ef65fe1cf90c1b85f50042"
+    },
+    "PMP": {
+      "what": "clad/src/clad/types/pathMotionProfile.clad, default motion profile",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/clad/src/clad/types/pathMotionProfile.clad",
+      "sha256": "0fca6d062e25b9d3f3952f03f1f98009c8c286384b0fcb76cad161a4ceabbb2b"
+    },
+    "CLIFFJSON": {
+      "what": "resources/config/engine/behaviorComponent/behaviors/victorBehaviorTree/reactions/reactToCliff.json",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/resources/config/engine/behaviorComponent/behaviors/victorBehaviorTree/reactions/reactToCliff.json",
+      "sha256": "49c9d50ef789e89fc38ec148ee50a07beb64ab9e747bb3ef68966512106135d6"
+    },
+    "CLIFFCPP": {
+      "what": "engine/aiComponent/behaviorComponent/behaviors/reactions/behaviorReactToCliff.cpp",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/engine/aiComponent/behaviorComponent/behaviors/reactions/behaviorReactToCliff.cpp",
+      "sha256": "ef91bd1e50af26c0384c824ae2ce4d2d133f8cf710d72700b80987d371a3378e"
+    },
+    "PROXCPP": {
+      "what": "robot/supervisor/src/proxSensors.cpp, the robot-side stop on cliff",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/proxSensors.cpp",
+      "sha256": "646875a50b907e8a2fccff32fad5ecb7a2293ded23bc99856038cf3a649be057"
+    },
+    "IMUCPP": {
+      "what": "robot/supervisor/src/imuFilter.cpp, fall and pick-up detection",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/imuFilter.cpp",
+      "sha256": "ac5e9ccae629167162b1007ac85d9ec73513e68ac4f2c5cf7449385e2fef921f"
+    },
+    "WHEELH": {
+      "what": "robot/supervisor/src/wheelController.h",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/wheelController.h",
+      "sha256": "7fa2006d5c7c684f846d5577fef8310d029a56102d91b3342205b68fffe0e533"
+    },
+    "HALM": {
+      "what": "robot/hal/src/hal_motors.cpp, encoder scales and speed measurement",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/hal/src/hal_motors.cpp",
+      "sha256": "f87db43aff269b2db55d8da77af57ee22dbcc71c7e2a2caac8f004237f3cd169"
+    },
+    "WHEELC": {
+      "what": "robot/supervisor/src/wheelController.cpp, the tread speed control law",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/wheelController.cpp",
+      "sha256": "407182f95afb3ea1ddcbceae87b1427251dabc1d583d7144d4b2cc3e03a12fc9"
+    },
+    "STEERC": {
+      "what": "robot/supervisor/src/steeringController.cpp, direct drive",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/steeringController.cpp",
+      "sha256": "a4c9a727895f92a9a321755ab3a289c1aca6de837f6f1a4bd598fde3e988f50e"
+    },
+    "HALH": {
+      "what": "robot/hal/include/anki/cozmo/robot/hal.h",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/hal/include/anki/cozmo/robot/hal.h",
+      "sha256": "862c1214004230cf48db200c7ccfc6afb576adb6cfdd200653279129df6a41ee"
+    },
+    "HEADC": {
+      "what": "robot/supervisor/src/headController.cpp, hardware branch of the gains",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/headController.cpp",
+      "sha256": "cae6261c197b4945d90acbcdc5494dbbc3a7cc90b7b54a4087eaa69d309dfbba"
+    },
+    "LIFTC": {
+      "what": "robot/supervisor/src/liftController.cpp, hardware branch of the gains",
+      "url": "https://raw.githubusercontent.com/kercre123/victor/snowboy/robot/supervisor/src/liftController.cpp",
+      "sha256": "3f1912b32d54a2f41c9e014f2eae4e81084465277900aae112dc5d7672eb3cba"
+    },
+    "BMI160DS": {
+      "what": "Bosch BMI160 datasheet BST-BMI160-DS000-09, rev 1.0, November 2020. Cited by line of the pdftotext -layout extraction. A part datasheet, not a statement about this robot.",
+      "url": "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi160-ds000.pdf",
+      "sha256": "0c3dca28517322bdcfcef9be8b1dd2b872ff9df9464d0088c17ccc4a67472f3b"
+    },
+    "VL53DS": {
+      "what": "ST VL53L0X datasheet DocID029104 Rev 2, April 2018, read from a distributor's mirror (st.com timed out). Cited by line of the pdftotext -layout extraction.",
+      "url": "https://www.pololu.com/file/0J1187/VL53L0X.pdf",
+      "sha256": "442686690c305410c3aef18399038ba2e1233d691a1554714fbf6073d2bbc3fe"
+    },
+    "VDOCS": {
+      "what": "Community hardware page, os-vector vector-docs. Not a vendor source.",
+      "url": "https://os-vector.github.io/vector-docs/5.-Hardware/index.html",
+      "sha256": "ca576bd8e457c6508f023141371d8c14b9787213ca36b8e8f2edaff157be82c5"
+    },
+    "REC": {
+      "what": "Recording of a production Vector on 2026-11-15, through the wire-pod host's SDK at the default control level, on an open-edged table, made by cpcs-5f62f24 with the operator's approval. One robot, one run, one surface, battery 4.10 V falling to 3.96 V. Timestamps are receive times on the host. Pose and yaw in it are the robot's own odometry, not ground truth.",
+      "where": "evidence/hw-rec-20261115/table-run1.jsonl (2,700 state rows, 51 command rows, 162 s) and rest-on-charger.jsonl (334 state rows, 20 s, asleep on the charger)",
+      "sha256": "table-run1.jsonl 2173493834223e5cd3875cc8eb190597e8a3f8e31df8e730b954ad7fba542b69; rest-on-charger.jsonl cf76dca79e8c034b7e19074743d810a17f248265161b7f6f2dc3934d4717705d"
+    },
+    "SLAM": {
+      "what": "vector_slam_maze/movement_directives.py",
+      "where": "private repository vector-slam-maze at 5992b24"
+    },
+    "GOSIM": {
+      "what": "skills/vector-sim/vectorsim/world.go, the gRPC cliff-safety simulator (not a dynamics model; its origin is the body centre, not the front axle)",
+      "where": "private repository workspace, branch cpcs/vector-cliff-guard at 17008e7"
+    },
+    "BRIEF": {
+      "what": "Observation on the household's real robot on 2026-11-14, as relayed in this task's brief. Not instrumented."
+    }
+  },
+  "parameters": {
+    "wheel_front_radius_mm": {"value": 14.5, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:23 WHEEL_DIAMETER_MM = 29; WEBOTS:31 frontWheelRadiusM 0.0145", "low": 14.0, "high": 15.0, "kind": "robot"},
+    "wheel_rear_radius_mm": {"value": 10.75, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS:32 rearWheelRadiusM 0.01075", "low": 10.25, "high": 11.25, "kind": "robot"},
+    "wheel_base_mm": {"value": 48.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:28 WHEEL_BASE_MM = 48; WEBOTS:33 rearWheelDistToFrontWheelM 0.048", "low": 47.0, "high": 49.0, "kind": "robot", "note": "Front axle to rear axle."},
+    "tread_spacing_mm": {"value": 46.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:26 WHEEL_DIST_MM = 46 (\"approx distance b/w the center of the front treads\"); WEBOTS:594,730 tracks at y = +/-0.023; GOSIM:28 WheelTrackMm = 46", "low": 44.0, "high": 48.0, "kind": "robot", "note": "Centre to centre. The vendor calls it approximate."},
+    "tread_width_mm": {"value": 10.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS:612 track wheel cylinder height 0.01", "low": 8.0, "high": 12.0, "kind": "robot"},
+    "chassis_length_mm": {"value": 56.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS:146-185 body box 0.03 long with a 0.013 radius cylinder at each end", "low": 52.0, "high": 60.0, "kind": "robot", "note": "Collision shape of the lower body only, not the overall length of the robot (which is missing)."},
+    "chassis_width_mm": {"value": 32.2, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS:162,175,185 body shape width 0.0322", "low": 30.0, "high": 34.0, "kind": "robot", "note": "Lower body between the treads."},
+    "chassis_center_x_mm": {"value": -15.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS:146 BODY translation -0.015", "low": -18.0, "high": -12.0, "kind": "robot"},
+    "chassis_top_z_mm": {"value": 27.2, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS:97 body centre 0.0142 above the ground, WEBOTS:185 box height 0.026", "low": 25.0, "high": 30.0, "kind": "robot"},
+    "chassis_ground_clearance_mm": {"value": 3.0, "unit": "mm", "provenance": "assumed", "source": "No source. The vendor Webots model leaves 1.2 mm (WEBOTS:97,185), taken as the low bound.", "low": 1.2, "high": 6.0, "kind": "robot", "note": "Decides whether the belly catches on a table edge."},
+    "total_mass_g": {"value": 170.0, "unit": "g", "provenance": "assumed", "source": "WEBOTS:91, a commented-out line \"#mass 0.17 # about 6 ounces\". Retailer listings give about 159 g according to a web search summary; the pages themselves could not be read (HTTP 403 or script-rendered), so that figure only widens the range.", "low": 150.0, "high": 185.0, "kind": "robot"},
+    "head_mass_g": {"value": 30.0, "unit": "g", "provenance": "assumed", "source": "No source.", "low": 20.0, "high": 45.0, "kind": "robot"},
+    "lift_mass_g": {"value": 12.0, "unit": "g", "provenance": "assumed", "source": "No source.", "low": 6.0, "high": 20.0, "kind": "robot"},
+    "wheel_mass_g": {"value": 2.0, "unit": "g", "provenance": "assumed", "source": "No source. Each of the four wheels.", "low": 1.0, "high": 4.0, "kind": "robot"},
+    "com_x_mm": {"value": -24.0, "unit": "mm", "provenance": "assumed", "source": "No source states it. Whole robot, lift down, head level. Set to the middle of the wheel base because the firmware puts the turn centre there (FW:62 DRIVE_CENTER_OFFSET = -25) and in this model the turn centre follows the centre of mass.", "low": -30.0, "high": -14.0, "kind": "robot"},
+    "com_z_mm": {"value": 22.0, "unit": "mm", "provenance": "assumed", "source": "No source. Whole robot, lift down, head level.", "low": 15.0, "high": 30.0, "kind": "robot"},
+    "tread_friction": {"value": 0.9, "unit": "1", "provenance": "assumed", "source": "No source. Rubber tread on a hard table.", "low": 0.5, "high": 1.3, "kind": "robot"},
+    "chassis_friction": {"value": 0.3, "unit": "1", "provenance": "assumed", "source": "No source. Plastic body on a hard table.", "low": 0.15, "high": 0.5, "kind": "robot"},
+    "wheel_speed_max_mmps": {"value": 220.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:294 MAX_WHEEL_SPEED_MMPS = 220", "low": 200.0, "high": 230.0, "kind": "robot"},
+    "wheel_speed_cliff_safe_mmps": {"value": 170.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:299 MAX_SAFE_WHEEL_SPEED_MMPS = 170 (\"can the robot drive without falling off (most) straight edge cliffs\")", "kind": "reference", "note": "Not an input to the model. A figure the model can be checked against."},
+    "wheel_accel_default_mmps2": {"value": 200.0, "unit": "mm/s^2", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "PMP:14 accel_mmps2 = 200", "low": 150.0, "high": 250.0, "kind": "robot"},
+    "wheel_decel_default_mmps2": {"value": 500.0, "unit": "mm/s^2", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "PMP:15 decel_mmps2 = 500", "low": 400.0, "high": 600.0, "kind": "robot"},
+    "point_turn_speed_default_radps": {"value": 2.0, "unit": "rad/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "PMP:16 pointTurnSpeed_rad_per_sec = 2", "kind": "robot"},
+    "point_turn_accel_default_radps2": {"value": 10.0, "unit": "rad/s^2", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "PMP:17 pointTurnAccel_rad_per_sec2 = 10", "low": 6.0, "high": 14.0, "kind": "robot"},
+    "body_rotation_speed_max_dps": {"value": 300.0, "unit": "deg/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:311 MAX_BODY_ROTATION_SPEED_DEG_PER_SEC = 300 (\"Determined experimentally\")", "kind": "robot"},
+    "wheel_stall_torque_mNm": {"value": 100.0, "unit": "mN*m", "provenance": "fitted", "source": "REC. Torque of one tread drive at the front wheel at full motor power and zero speed. Fitted by fit_recording.py to REC segments spin_ccw_30, spin_cw_30, spin_ccw_100, spin_cw_100, back_40, forward_40 (reported wheel speeds and gyro z); the 60 mm/s spins and 80 mm/s steps were held out. The range is the author's: one robot, one run. It is fitted with the assumed mass and tread friction in place; the recording fixes how strong the motor is relative to the load, not the torque by itself.", "low": 50.0, "high": 200.0, "kind": "robot"},
+    "tread_noload_speed_mmps": {"value": 265.0, "unit": "mm/s", "provenance": "fitted", "source": "REC. Tread speed at full power with no load, for a linear motor. Fitted by fit_recording.py to REC segments spin_ccw_30, spin_cw_30, spin_ccw_100, spin_cw_100, back_40, forward_40 (reported wheel speeds and gyro z); the 60 mm/s spins and 80 mm/s steps were held out. The range is the author's: one robot, one run. The firmware's own feedforward line (WHEELC:101) reads as 319.5; this robot on this surface at 4.0 V gives less speed per unit of power.", "low": 230.0, "high": 320.0, "kind": "robot"},
+    "tread_friction_power_fraction": {"value": 0.10, "unit": "1", "provenance": "fitted", "source": "REC. Drive friction as a fraction of stall torque. Fitted by fit_recording.py to REC segments spin_ccw_30, spin_cw_30, spin_ccw_100, spin_cw_100, back_40, forward_40 (reported wheel speeds and gyro z); the 60 mm/s spins and 80 mm/s steps were held out. The range is the author's: one robot, one run. The firmware's line reads as 0.057.", "low": 0.06, "high": 0.15, "kind": "robot"},
+    "wheel_kp_power_per_mmps": {"value": 0.0005, "unit": "1/(mm/s)", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:26 DEFAULT_WHEEL_KP", "kind": "robot"},
+    "wheel_ki_power_per_mmps_tick": {"value": 0.00005, "unit": "1/(mm/s) per control tick", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:27 DEFAULT_WHEEL_KI", "kind": "robot"},
+    "wheel_error_sum_max": {"value": 5000.0, "unit": "mm/s summed over ticks", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:35-36 MAX_ERROR_SUM", "kind": "robot"},
+    "wheel_ff_slope_power_per_mmps": {"value": 0.00313, "unit": "1/(mm/s)", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:101 out_ol = 0.00313 * x + 0.057 above 30 mm/s (the hardware branch, not the SIMULATOR one)", "kind": "robot"},
+    "wheel_ff_offset_power": {"value": 0.057, "unit": "1", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:101", "kind": "robot"},
+    "wheel_ff_low_speed_mmps": {"value": 30.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:100 if (x > 30)", "kind": "robot"},
+    "wheel_ff_low_slope_power_per_mmps": {"value": 0.00666667, "unit": "1/(mm/s)", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:104 out_ol = 0.00666667 * x at or below 30 mm/s. The two branches do not meet at 30 mm/s (0.200 against 0.151).", "kind": "robot"},
+    "wheel_command_stopped_mmps": {"value": 2.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELH:18 WHEEL_SPEED_COMMAND_STOPPED_MM_S; WHEELC:164-181: at or below it the power is 0, and power is never applied against the commanded direction", "kind": "robot"},
+    "motor_power_max": {"value": 1.0, "unit": "1", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HALH:52 MOTOR_MAX_POWER", "kind": "robot"},
+    "wheel_accel_zero_is_immediate": {"value": true, "unit": "bool", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "STEERC:520-522: a zero acceleration means \"max acceleration (i.e. command target velocity)\"", "kind": "robot"},
+    "wheel_speed_reported_whole_mmps": {"value": true, "unit": "bool", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELC:47-48 the measured wheel speed is an integer (s32); WHEELC:30,220-222 the filter coefficient is 0, so the reported speed is that integer", "kind": "robot"},
+    "tread_mm_per_encoder_count": {"value": 0.126904, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HALM:62-63 (0.96 * 29.0 * 0.25 * pi) / 172.3, \"Magic 96% corrective fudge factor, 29mm wheel diameter\". The source does not say what 172.3 is.", "kind": "robot", "note": "7.880 counts per mm. The model takes this as the true tread travel per count."},
+    "odometry_wheel_factor": {"value": 0.96, "unit": "1", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HALM:62 the corrective factor inside the encoder scale: the robot's odometry behaves as if the wheel were 27.84 mm across", "kind": "reference", "note": "Not an input on its own; it is inside tread_mm_per_encoder_count."},
+    "encoder_zero_speed_ticks": {"value": 5, "unit": "count", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HALM:58 ZERO_SPEED_ENCODER_TIC_THRESH: no new count for this many control ticks reads as zero speed", "kind": "robot"},
+    "lift_rad_per_encoder_count": {"value": 0.0052465, "unit": "rad", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HALM:64 (0.25 * pi) / 149.7. The source does not say what 149.7 is.", "kind": "robot"},
+    "head_rad_per_encoder_count": {"value": 0.0021447, "unit": "rad", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HALM:65 (0.25 * pi) / 366.211. The source does not say what 366.211 is.", "kind": "robot"},
+    "wheel_armature_gcm2": {"value": 2000.0, "unit": "g*cm^2", "provenance": "fitted", "source": "REC. Rotor inertia seen at each wheel joint through the gearbox. Fitted by fit_recording.py to REC segments spin_ccw_30, spin_cw_30, spin_ccw_100, spin_cw_100, back_40, forward_40 (reported wheel speeds and gyro z); the 60 mm/s spins and 80 mm/s steps were held out. The range is the author's: one robot, one run. With the stall torque it sets how fast the treads speed up and stop.", "low": 1000.0, "high": 4000.0, "kind": "robot"},
+    "body_rotation_speed_observed_dps": {"value": 360.0, "unit": "deg/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:307 comment: \"It can actually spin closer to 360 deg/s\" at full wheel speed", "kind": "reference", "note": "Not an input. A figure the model can be checked against."},
+    "spin_rate_fraction_measured": {"value": 0.5, "unit": "1", "provenance": "measured", "source": "REC table-run1.jsonl, recording.spin_ratios: turn rate over the no-slip rate (wheel speed difference over tread spacing) in the second half of the six recorded spins at 30, 60 and 100 mm/s: 0.49, 0.51, 0.49, 0.53, 0.44 and 0.52, mean 0.497 (13 to 22 samples each). The gyro is in the head and the head was 22.4 deg up in all six, so gyro z alone reads 0.41 to 0.50 (mean 0.46); the figure here is from gyro x and z together. Clockwise was faster than counter-clockwise in all three pairs.", "kind": "reference", "note": "Not an input. A figure the model can be checked against. One robot, one surface, head up; nothing above 100 mm/s was held."},
+    "wheel_stopped_threshold_mmps": {"value": 2.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "WHEELH:21 WHEEL_SPEED_CONSIDER_STOPPED_MM_S = 2; used at PROXCPP:190", "kind": "robot"},
+    "drive_center_offset_mm": {"value": -25.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:62 DRIVE_CENTER_OFFSET = -25 on the robot (FW:59 gives -16 in the vendor simulator)", "kind": "reference", "note": "Not an input. Where the robot turns about is an outcome of the model."},
+    "directive_forward_speed_min_mmps": {"value": 20.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "household_code", "source": "SLAM:32 MIN_LINEAR_SPEED_MMPS", "kind": "reference"},
+    "directive_forward_speed_max_mmps": {"value": 160.0, "unit": "mm/s", "provenance": "sdk", "source_kind": "household_code", "source": "SLAM:33 MAX_FORWARD_SPEED_MMPS", "kind": "reference"},
+    "directive_turn_speed_min_dps": {"value": 15.0, "unit": "deg/s", "provenance": "sdk", "source_kind": "household_code", "source": "SLAM:44 MIN_TURN_SPEED_DPS", "kind": "reference"},
+    "directive_turn_speed_max_dps": {"value": 120.0, "unit": "deg/s", "provenance": "sdk", "source_kind": "household_code", "source": "SLAM:45 MAX_TURN_SPEED_DPS", "kind": "reference"},
+    "encoder_tread_direction_sensed": {"value": false, "unit": "bool", "provenance": "manual", "source": "TRM 11.4.5, trm.txt:2370-2372: the tread motors have a single emitter and detector; TRM 11, trm.txt:2040-2043: a Sharp GP1S092HCPIF on the tread motors, a dual-channel part on lift and head", "kind": "robot", "note": "The reported wheel speed takes its sign from the command."},
+
+    "head_angle_min_deg": {"value": -22.0, "unit": "deg", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:35 MIN_HEAD_ANGLE; SLAM:48 MIN_HEAD_DEG; WEBOTS:11", "kind": "robot"},
+    "head_angle_max_deg": {"value": 45.0, "unit": "deg", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:36 MAX_HEAD_ANGLE; SLAM:49 MAX_HEAD_DEG; WEBOTS:12", "kind": "robot"},
+    "neck_joint_position_mm": {"value": [-13.0, 0.0, 49.0], "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:117 NECK_JOINT_POSITION = {-13, 0, 34.5 + WHEEL_RAD_TO_MM}", "low": [-15.0, 0.0, 47.0], "high": [-11.0, 0.0, 51.0], "kind": "robot"},
+    "head_camera_position_mm": {"value": [18.84, 0.0, -7.96], "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:120 HEAD_CAM_POSITION, relative to the neck joint", "kind": "robot"},
+    "imu_position_mm": {"value": [5.8, 0.0, -13.5], "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:126 IMU_POSITION, relative to the neck joint", "kind": "robot", "note": "The IMU is in the head (TRM 63.2.2, trm.txt:12037; IMUCPP:876 subtracts the head angle to get pitch). REC confirms its axes turn with the head: gyro x over gyro z follows tan(head angle) with slope 0.9985 over 369 turning samples (recording.gyro_frame). See imu_pitch_offset_deg."},
+    "imu_pitch_offset_deg": {"value": -0.66, "unit": "deg", "provenance": "fitted", "source": "REC table-run1.jsonl, simulacrum/imu_fit.py, the same fit as accel_bias_mg: with the reported head angle at 0 on a level surface the accelerometer's frame is pitched -0.66 deg (nose down), standard error 0.17 deg; leaving out each cluster of head angle gives -0.64 to -0.81. An independent signal agrees in sign and size: recording.gyro_frame fits gyro x over gyro z against tan(head angle) over 369 turning samples and finds slope 0.9985 and an offset of -1.06 deg. The range spans both.", "low": -1.2, "high": -0.2, "kind": "robot", "note": "The sum of the body's stance on its treads, the mounting of the part and any zero error of the head angle; the recording cannot separate them. The model applies it to the IMU's frame."},
+    "head_box_mm": {"value": [34.0, 40.0, 34.0], "unit": "mm", "provenance": "assumed", "source": "Box drawn around the capsule layout of the head in WEBOTS:307-425 (capsules at x +/-12, y +/-15, radius 5). The box itself is the author's.", "low": [28.0, 34.0, 28.0], "high": [40.0, 44.0, 40.0], "kind": "robot"},
+    "head_speed_default_radps": {"value": 10.0, "unit": "rad/s", "provenance": "manual", "source": "TRM 62.6, trm.txt:11823: \"Recommended value: 10 radians/sec\"", "kind": "robot"},
+    "head_servo_kp_mNm_per_rad": {"value": 300.0, "unit": "mN*m/rad", "provenance": "assumed", "source": "No source. Stands in for the firmware position loop.", "low": 150.0, "high": 600.0, "kind": "robot"},
+    "head_servo_kv_mNms_per_rad": {"value": 4.0, "unit": "mN*m*s/rad", "provenance": "assumed", "source": "No source.", "low": 2.0, "high": 8.0, "kind": "robot"},
+    "servo_torque_max_mNm": {"value": 30.0, "unit": "mN*m", "provenance": "assumed", "source": "No source. Head and lift.", "low": 10.0, "high": 80.0, "kind": "robot"},
+    "servo_armature_gcm2": {"value": 50.0, "unit": "g*cm^2", "provenance": "assumed", "source": "No source. Head and lift rotor inertia at the joint.", "low": 10.0, "high": 200.0, "kind": "robot"},
+    "camera_fov_vertical_deg": {"value": 50.0, "unit": "deg", "provenance": "manual", "source": "TRM 79.2, trm.txt:15732-15733: the cropped image has a 90 degree horizontal and 50 degree vertical field of view", "kind": "robot"},
+    "camera_fov_horizontal_deg": {"value": 90.0, "unit": "deg", "provenance": "manual", "source": "TRM 79.2, trm.txt:15732-15733", "kind": "robot"},
+    "camera_resolution_px": {"value": [640, 360], "unit": "px", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:175-176 DEFAULT_CAMERA_RESOLUTION_WIDTH / HEIGHT", "kind": "robot"},
+
+    "lift_height_min_mm": {"value": 32.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:77 LIFT_HEIGHT_LOWDOCK; SLAM:52 LIFT_MIN_MM", "kind": "robot"},
+    "lift_height_max_mm": {"value": 92.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:79 LIFT_HEIGHT_CARRY; SLAM:53 LIFT_MAX_MM", "kind": "robot"},
+    "lift_base_position_mm": {"value": [-41.0, 0.0, 45.0], "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:123 LIFT_BASE_POSITION = {-41, 0, 30.5 + WHEEL_RAD_TO_MM}", "kind": "robot", "note": "Shoulder joint."},
+    "lift_arm_length_mm": {"value": 66.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:84 LIFT_ARM_LENGTH", "kind": "robot"},
+    "lift_height_above_prox_mm": {"value": 59.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:81 LIFT_HEIGHT_ABOVE_PROX (\"Just above prox sensor\")", "kind": "robot"},
+    "lift_xbar_width_mm": {"value": 30.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:99 LIFT_XBAR_WIDTH (approximate)", "kind": "robot"},
+    "lift_xbar_height_mm": {"value": 8.5, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:97 LIFT_XBAR_HEIGHT (\"measured manually\")", "kind": "robot"},
+    "lift_xbar_top_wrt_wrist_mm": {"value": -20.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:95 LIFT_XBAR_HEIGHT_WRT_WRIST_JOINT", "kind": "robot"},
+    "lift_front_wrt_wrist_mm": {"value": 4.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:105 LIFT_FRONT_WRT_WRIST_JOINT", "kind": "robot"},
+    "lift_back_wrt_wrist_mm": {"value": -1.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:107 LIFT_BACK_WRT_WRIST_JOINT (approximate)", "kind": "robot"},
+    "lift_speed_default_radps": {"value": 10.0, "unit": "rad/s", "provenance": "manual", "source": "TRM 62.7, trm.txt:11868: \"Recommended value: 10 radians/sec\"", "kind": "robot"},
+    "lift_servo_kp_mNm_per_rad": {"value": 600.0, "unit": "mN*m/rad", "provenance": "assumed", "source": "No source.", "low": 300.0, "high": 1200.0, "kind": "robot"},
+    "lift_servo_kv_mNms_per_rad": {"value": 12.0, "unit": "mN*m*s/rad", "provenance": "assumed", "source": "No source.", "low": 6.0, "high": 24.0, "kind": "robot"},
+
+    "cliff_front_x_mm": {"value": 2.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:210 kCliffSensorXOffsetFront_mm = 2 (\"approximate and should be verified\"); WEBOTS:114 has 0", "low": 0.0, "high": 5.0, "kind": "robot"},
+    "cliff_rear_x_mm": {"value": -50.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:211 kCliffSensorXOffsetRear_mm = -50 (approximate); WEBOTS:122 has -45", "low": -52.0, "high": -43.0, "kind": "robot"},
+    "cliff_y_mm": {"value": 14.0, "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:209 kCliffSensorYOffset_mm = 14 (approximate); WEBOTS:114 has 15; GOSIM:31 has 12", "low": 12.0, "high": 16.0, "kind": "robot"},
+    "cliff_sensor_height_mm": {"value": 8.0, "unit": "mm", "provenance": "assumed", "source": "No source. The vendor Webots model puts the sensors 1.2 mm above the ground (WEBOTS:97,114).", "low": 1.2, "high": 12.0, "kind": "robot"},
+    "cliff_detect_range_mm": {"value": 25.0, "unit": "mm", "provenance": "assumed", "source": "No source. Distance from sensor to surface beyond which a cliff is reported. The real sensor reports infrared brightness against a threshold (FW:199-205), not a distance.", "low": 15.0, "high": 45.0, "kind": "robot"},
+    "cliff_sensor_order": {"value": ["front_left", "front_right", "back_left", "back_right"], "unit": "index", "provenance": "manual", "source": "TRM 38.1.1, trm.txt:5417-5426", "kind": "robot"},
+    "cliff_values_exposed": {"value": false, "unit": "bool", "provenance": "manual", "source": "TRM 26, trm.txt:4236-4239: \"The individual sensor values are not accessible\"; one status bit covers all four", "kind": "robot"},
+    "cliff_reaction_backup_mm": {"value": 29.0, "unit": "mm", "provenance": "measured", "source": "REC, one event, by the robot's own odometry: from where it stopped (229.26, 53.65) to where it came to rest (201.50, 62.66) is 29.2 mm. It then turned about 170 degrees to face the edge, which the model does not do. Other sources: GOSIM:33 has 40; CLIFFJSON:7 has 60; CLIFFCPP:798 says the animation backs up about 80.", "low": 20.0, "high": 80.0, "kind": "robot"},
+    "cliff_reaction_backup_speed_mmps": {"value": 205.0, "unit": "mm/s", "provenance": "measured", "source": "REC, one event: reported wheel speeds of 210, 178, 224 and 206 mm/s in the two rows of the move away (mean 205). CLIFFJSON:8 has 100 for a later recovery move.", "low": 100.0, "high": 220.0, "kind": "robot"},
+    "cliff_event_delay_ms": {"value": 500.0, "unit": "ms", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:331 CLIFF_EVENT_DELAY_MS = 500 (\"between stopping the motors and issuing a cliff event\")", "low": 300.0, "high": 700.0, "kind": "reference", "note": "Not an input. The first two versions used it as the pause before the back-up."},
+
+    "tof_position_mm": {"value": [10.0, 0.0, 16.0], "unit": "mm", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:68 kProxSensorPosition_mm (\"TODO: finalize these dimensions on production robot\")", "low": [8.0, 0.0, 13.0], "high": [13.0, 0.0, 19.0], "kind": "robot"},
+    "tof_tilt_up_deg": {"value": 6.5, "unit": "deg", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:67 kProxSensorTiltAngle_rad = 6.5 degrees, upward positive", "low": 5.0, "high": 8.0, "kind": "robot"},
+    "tof_fov_deg": {"value": 25.0, "unit": "deg", "provenance": "manual", "source": "TRM 11.4.2, trm.txt:2340-2342; FW:69 agrees", "kind": "robot", "note": "Recorded, not modelled: the model casts one ray along the axis, as the vendor Webots model does (WEBOTS:139)."},
+    "tof_range_min_mm": {"value": 30.0, "unit": "mm", "provenance": "manual", "source": "TRM 11.4.2, trm.txt:2341: usable range 30 mm to 1200 mm", "kind": "robot"},
+    "tof_range_max_mm": {"value": 1200.0, "unit": "mm", "provenance": "manual", "source": "TRM 11.4.2, trm.txt:2341", "kind": "robot"},
+    "tof_useful_max_mm": {"value": 300.0, "unit": "mm", "provenance": "manual", "source": "TRM 11.4.2, trm.txt:2342: \"max useful range closer to 300mm for Vector\"", "kind": "reference"},
+
+    "gyro_range_dps": {"value": 500.0, "unit": "deg/s", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS_IMU:13", "kind": "robot"},
+    "accel_range_g": {"value": 2.0, "unit": "g", "provenance": "sdk", "source_kind": "vendor_webots_model", "source": "WEBOTS_IMU:18", "kind": "robot"},
+    "gravity_mmps2": {"value": 9810.0, "unit": "mm/s^2", "provenance": "manual", "source": "TRM 63.2.1, trm.txt:12031", "kind": "robot"},
+    "fall_accel_low_mmps2": {"value": 6000.0, "unit": "mm/s^2", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "IMUCPP:547 FALLING_THRESH_LOW", "kind": "robot"},
+    "fall_accel_high_mmps2": {"value": 9000.0, "unit": "mm/s^2", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "IMUCPP:548 FALLING_THRESH_HIGH", "kind": "robot"},
+    "fall_detect_time_ms": {"value": 150.0, "unit": "ms", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "IMUCPP:553 fallDetectionTimeout_ms", "kind": "robot"},
+    "pickup_cliff_sensor_count": {"value": 3, "unit": "count", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "IMUCPP:140 NUM_CLIFF_SENSORS_FOR_CHANGE_DETECT_PICKUP", "kind": "robot"},
+    "pickup_detect_ticks": {"value": 40, "unit": "count", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "IMUCPP:136 PICKUP_COUNT_WHILE_MOVING", "kind": "robot"},
+
+    "control_period_ms": {"value": 5.0, "unit": "ms", "provenance": "manual", "source": "TRM 114.3, trm.txt:19985: the motor control loops \"are updated 200 times per second\"; FW:324 ROBOT_TIME_STEP_MS = 5 agrees", "kind": "robot"},
+    "state_period_ms": {"value": 60.0, "unit": "ms", "provenance": "measured", "source": "REC: the interval between state messages as the SDK receives them. Median 59.8 ms, mean 60.0 ms over 2,699 intervals awake; median 59.9 ms over 333 intervals asleep on the charger. The firmware sends its own state every 30 ms (FW:383); the SDK stream is half that rate.", "kind": "robot"},
+    "state_period_firmware_ms": {"value": 30.0, "unit": "ms", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:383 STATE_MESSAGE_FREQUENCY = 6 control ticks (\"every 30ms\")", "kind": "reference", "note": "Not an input. The SDK receives state every 60 ms (state_period_ms)."},
+    "command_delay_ms": {"value": 60.0, "unit": "ms", "provenance": "fitted", "source": "REC. Time from the host issuing a wheel command to the treads acting on it, with the return path of the state message folded in: the recording cannot separate the two. Fitted by fit_recording.py to REC segments spin_ccw_30, spin_cw_30, spin_ccw_100, spin_cw_100, back_40, forward_40 (reported wheel speeds and gyro z); the 60 mm/s spins and 80 mm/s steps were held out. The range is the author's: one robot, one run.", "low": 40.0, "high": 120.0, "kind": "robot"},
+    "turn_tolerance_deg": {"value": 2.0, "unit": "deg", "provenance": "manual", "source": "TRM 62.9.1, trm.txt:11942-11944: the angular tolerance \"is clamped to a minimum of 2 degrees internally\"", "kind": "robot", "note": "A turn in place ends when the remaining angle is inside this."},
+    "motor_stall_limit_s": {"value": 15.0, "unit": "s", "provenance": "manual", "source": "TRM 114.4, trm.txt:20004-20006", "kind": "reference", "note": "Not modelled."},
+
+    "head_power_gains": {"value": [4.0, 0.03, 4000.0], "unit": "motor power per rad: Kp, Ki, Kd", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "HEADC:51-53 Kp_ 4, Kd_ 4000, Ki_ 0.03 (hardware branch)", "kind": "reference", "note": "Not an input. The gains are in motor power, and how much torque a unit of power gives the head motor is not published. The model's head drive stays assumed."},
+    "lift_power_gains": {"value": [3.0, 0.1, 3000.0], "unit": "motor power per rad: Kp, Ki, Kd", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "LIFTC:83-85 Kp_ 3, Kd_ 3000, Ki_ 0.1 (hardware branch)", "kind": "reference", "note": "Not an input, for the same reason."},
+    "imu_part": {"value": "BMI160", "unit": "part", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "IMUCPP:153 a comment cites the \"BMI160 datasheet\"; VDOCS (a community page) lists \"IMU: BMI160\". The manual does not name the part.", "kind": "reference"},
+    "gyro_noise_rms_dps": {"value": 0.034, "unit": "deg/s", "provenance": "measured", "source": "REC rest-on-charger.jsonl: standard deviation 0.032, 0.036 and 0.032 deg/s on the three axes over 334 rows (79 distinct samples), robot asleep on the charger. Awake and moving it will be more. The BMI160 datasheet gives 0.07 (BMI160DS:527-530).", "low": 0.017, "high": 0.07, "kind": "robot"},
+    "gyro_bias_dps": {"value": [0.001, 0.009, -0.001], "unit": "deg/s", "provenance": "measured", "source": "REC table-run1.jsonl, recording.gyro_at_rest: mean reading over every still stretch (695 rows in 31 stretches, 7 s to 155 s) is 0.0006, 0.0086 and -0.0010 deg/s. This is what is left after the firmware's own bias removal (IMUCPP:102 accepts estimates within a 0.35 deg/s band); the part's raw zero-rate offset is +/-3 deg/s (BMI160DS:503). The largest mean of any one still stretch is 0.038 deg/s, and the range is that.", "low": [-0.04, -0.04, -0.04], "high": [0.04, 0.04, 0.04], "kind": "robot", "note": "Measured only while still. Whether the firmware's estimate drifts during long motion is not in the recording."},
+    "accel_noise_rms_mg": {"value": 1.26, "unit": "mg", "provenance": "measured", "source": "REC rest-on-charger.jsonl: standard deviation 13.5, 11.5 and 12.1 mm/s^2 on the three axes (mean 12.4 mm/s^2) over 334 rows, robot asleep on the charger. The BMI160 datasheet gives 1.8 mg (BMI160DS:442-444).", "low": 0.6, "high": 2.5, "kind": "robot"},
+    "accel_bias_mg": {"value": [-47.0, -7.7, 22.3], "unit": "mg", "provenance": "fitted", "source": "REC table-run1.jsonl, simulacrum/imu_fit.py: least squares over the 26 still stretches on the table (625 rows) for the table's tilt, the pitch of the accelerometer's frame and one offset per axis, in a model of the accelerometer alone (the MuJoCo model is not involved). Offsets -47.0, -7.7 and +22.3 mg; the fit's own standard errors are 3.0, 0.6 and 0.4 mg, the residual is 17 mm/s^2 rms, and leaving out each cluster of head angle in turn moves them by at most 1.2 mg. Nothing else was held out. The x offset and imu_pitch_offset_deg trade against each other (correlation -0.98 in the fit): a bootstrap over the still stretches puts x between -48.9 and -45.1 mg and their sum, the x reading on a level surface at head angle 0, between -60.3 and -57.3 mg. The two are drawn independently in training, which is wider than the fit allows. Gravity is taken as 9806.65 mm/s^2, which leaves about 3 mg of doubt on z; the y offset cannot be told from a roll of the frame. The range of +/-10 mg is the author's allowance for those and for temperature. BMI160DS:410 gives +/-40 mg for the part, so x on this robot is outside the part's typical figure.", "low": [-57.0, -17.7, 12.3], "high": [-37.0, 2.3, 32.3], "kind": "robot", "note": "A fact about one robot. Another Vector will have other offsets; widen the range to +/-40 mg per axis to train for any unit."},
+    "tof_range_std_fraction": {"value": 0.022, "unit": "1", "provenance": "measured", "source": "REC rest-on-charger.jsonl: standard deviation 5.2 mm at a mean of 237 mm over 334 rows, one distance and one target. That noise grows in proportion to distance is the model's form, not measured. The VL53L0X datasheet gives 3 to 7% (VL53DS:1260-1267).", "low": 0.011, "high": 0.07, "kind": "robot"},
+    "battery_voltage_v": {"value": 3.7, "unit": "V", "provenance": "manual", "source": "TRM 6.1.1, trm.txt:1508: single-cell 3.7 V 320 mAh", "kind": "reference", "note": "Not modelled."},
+    "battery_capacity_mah": {"value": 320.0, "unit": "mA*h", "provenance": "manual", "source": "TRM 6.1.1, trm.txt:1508", "kind": "reference", "note": "Not modelled."},
+    "servo_command_delay_ms": {"value": 225.0, "unit": "ms", "provenance": "fitted", "source": "REC. Time from a head or lift command to the motor acting on it, return path included. Those commands are actions through the robot's engine, not direct motor commands. Fitted by fit_recording.py to REC segments head_2, head_4 and lift_1 (reported head angle and lift height); head_3 and lift_2 were held out. The range is the author's: one robot, one run.", "low": 150.0, "high": 300.0, "kind": "robot"},
+    "head_speed_max_radps": {"value": 1.75, "unit": "rad/s", "provenance": "fitted", "source": "REC. The head's turn rate whatever speed is asked for. Fitted by fit_recording.py to REC segments head_2, head_4 and lift_1 (reported head angle and lift height); head_3 and lift_2 were held out. It is the rate of the model's constant-rate ramp that best fits those moves, not the robot's top rate: between samples the recording shows 92, 144 and 230 deg/s (1.6, 2.5 and 4.0 rad/s) on moves of 15, 32 and 46 degrees, faster on the larger moves, so the robot's profile is not a constant rate and the held-out move is fitted worse. The high bound is the fastest rate seen. The range is the author's: one robot, one run.", "low": 1.3, "high": 4.1, "kind": "robot"},
+    "lift_speed_max_radps": {"value": 2.8, "unit": "rad/s", "provenance": "fitted", "source": "REC. The lift arm's turn rate whatever speed is asked for. Fitted by fit_recording.py to REC segments head_2, head_4 and lift_1 (reported head angle and lift height); head_3 and lift_2 were held out. It is the rate of the model's constant-rate ramp that best fits those moves, not the robot's top rate: between samples the recording shows 3.8 rad/s going up and 6.0 rad/s coming down (248 and 382 mm/s of fork height), faster on the larger moves, so the robot's profile is not a constant rate and the held-out move is fitted worse. The high bound is the fastest rate seen. The range is the author's: one robot, one run.", "low": 2.0, "high": 6.0, "kind": "robot"},
+    "cliff_reaction_pause_ms": {"value": 1220.0, "unit": "ms", "provenance": "measured", "source": "REC, one event: the cliff bit first shows at t = 159.734 s and the treads move again between 160.928 and 160.983 s, so 1.19 to 1.25 s after it. The firmware's 500 ms cliff event delay (FW:331) is not this pause.", "low": 800.0, "high": 1700.0, "kind": "robot"},
+    "lift_arm_mass_fraction": {"value": 0.5, "unit": "1", "provenance": "assumed", "source": "No source. Share of the lift mass in the arms; the rest is the fork.", "low": 0.3, "high": 0.7, "kind": "robot"},
+    "head_angle_tol_deg": {"value": 2.0, "unit": "deg", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:32 HEAD_ANGLE_TOL = 2 degrees (\"within this tolerance of the target angle, it is done moving\")", "kind": "robot"},
+    "lift_angle_tol_deg": {"value": 1.5, "unit": "deg", "provenance": "sdk", "source_kind": "vendor_firmware", "source": "FW:33 LIFT_ANGLE_TOL = 1.5 degrees", "kind": "robot"},
+    "heading_hold_gain_mmps_per_rad": {"value": 200.0, "unit": "mm/s/rad", "provenance": "assumed", "source": "No source. Wheel speed difference per radian of heading error in a straight drive; stands in for the firmware path follower.", "low": 50.0, "high": 400.0, "kind": "robot"},
+    "drive_done_mm": {"value": 1.0, "unit": "mm", "provenance": "assumed", "source": "No source. Remaining distance at which a straight drive ends.", "low": 0.5, "high": 3.0, "kind": "robot"},
+
+    "contact_time_constant_ms": {"value": 4.0, "unit": "ms", "provenance": "chosen", "source": "Solver setting. Stiffness of the contact model; at least two timesteps. A convergence check, not an unknown about the robot: rank_assumed.py reports what moving it does.", "low": 2.0, "high": 8.0, "kind": "numeric"},
+    "settle_time_ms": {"value": 200.0, "unit": "ms", "provenance": "chosen", "source": "Solver setting. Time the model is stepped at rest before the clock starts.", "low": 100.0, "high": 500.0, "kind": "numeric"},
+    "table_length_mm": {"value": 600.0, "unit": "mm", "provenance": "chosen", "source": "Scenario setting, not a property of the robot. Measure the real table to train for one table; the range trains for many.", "low": 300.0, "high": 1500.0, "kind": "scene"},
+    "table_width_mm": {"value": 600.0, "unit": "mm", "provenance": "chosen", "source": "Scenario setting.", "low": 300.0, "high": 1500.0, "kind": "scene"},
+    "table_height_mm": {"value": 300.0, "unit": "mm", "provenance": "chosen", "source": "Scenario setting.", "low": 50.0, "high": 800.0, "kind": "scene"},
+    "table_thickness_mm": {"value": 20.0, "unit": "mm", "provenance": "chosen", "source": "Scenario setting.", "low": 10.0, "high": 40.0, "kind": "scene"},
+    "sim_timestep_ms": {"value": 1.0, "unit": "ms", "provenance": "chosen", "source": "Solver setting. A convergence check: rank_assumed.py reports what halving it does.", "low": 0.5, "high": 1.0, "kind": "numeric", "note": "Must divide control_period_ms."}
+  },
+  "missing": [
+    {"name": "overall_envelope_mm", "what": "Length, width and height of the whole robot, lift down and head level.", "measure": "Ruler or calipers on the robot standing on a flat surface.", "needs": "ruler"},
+    {"name": "total_mass_g", "what": "Mass of the robot. The table carries an assumed 170 g.", "measure": "Weigh the robot.", "needs": "scale reading to 1 g"},
+    {"name": "centre_of_mass", "what": "Fore-aft and vertical position of the centre of mass. Assumed.", "measure": "Balance the robot on a straight edge laid across the treads and mark the balance line; repeat on its side.", "needs": "ruler and a straight edge"},
+    {"name": "part_masses_and_inertia", "what": "Mass of head, lift, wheels and their inertia. Assumed.", "measure": "Not measurable without taking the robot apart. To be fitted from recorded motion.", "needs": "recorded motion data"},
+    {"name": "gear_ratio_and_encoder_slots", "what": "Gear ratios and encoder counts per motor turn. The firmware gives tread travel per count (0.1269 mm) but not what its divisors 172.3, 149.7 and 366.211 are.", "measure": "Check the odometry scale instead: a timed, taped drive of a known distance.", "needs": "timed drive on a barriered surface"},
+    {"name": "motor_torque_curve", "what": "Stall force of the tread motors. The recording fixes the motor's strength relative to the load (stall torque against rotor inertia, mass and friction), not the torque itself; the table's 100 mN*m is a fit with the assumed mass in place.", "measure": "Push against a force gauge at a low commanded speed; time drives at several speeds.", "needs": "force gauge, timed drive on a barriered surface"},
+    {"name": "wheel_speed_response", "what": "The true top speed and the response above 100 mm/s. The recording covers spins at 30, 60 and 100 mm/s and straight steps of 0.4 and 0.7 s at 40 and 80 mm/s, too short to reach a steady speed. The no-load speed in the table is a fit to those and is an extrapolation above 100 mm/s.", "measure": "Step the wheel speed and log the reported wheel speeds at the state rate.", "needs": "timed drive on a barriered surface"},
+    {"name": "tread_friction", "what": "Friction of the treads on the surface in use. Assumed 0.9.", "measure": "Tilt the surface with the robot on it, treads held, until it slides; the coefficient is the tangent of the angle.", "needs": "a board and a protractor or phone inclinometer"},
+    {"name": "turn_slip", "what": "Why the robot turns at about half the no-slip rate, and what it does above 100 mm/s. In the recording the six spins at 30, 60 and 100 mm/s turn at 0.44 to 0.53 of the no-slip rate (mean 0.50, from gyro x and z together; the head-mounted gyro's z axis alone reads 0.41 to 0.50 because the head was 22 deg up). The model gives 0.44 to 0.46: it turns about 8 percent slower than the robot did. In the model the figure follows mostly from the assumed centre of mass, which is not measured; it is not fitted to this one number, because several unknowns move it. Not recorded: a held spin above 100 mm/s, a turn count against a mark on the surface, a spin with the head level. The robot's own turn after its cliff reaction touched 210 to 235 mm/s for three samples (0.12 s) at 276 to 301 deg/s, 0.49 to 0.56 of no-slip; the firmware's 360 deg/s figure would need 0.66.", "measure": "Measure the centre of mass first (see centre_of_mass). Then command equal and opposite wheel speeds for a fixed time with the head level, in both directions, and count turns against a mark; an overhead video gives the turn centre as well.", "needs": "timed turns on a barriered surface, a mark, and a phone camera overhead"},
+    {"name": "cliff_sensor_height_and_range", "what": "Height of the cliff sensors and the drop at which the cliff bit sets. Assumed.", "measure": "Raise the robot on shims of known thickness until the cliff bit sets; measure the sensor windows with a ruler.", "needs": "ruler and shims"},
+    {"name": "cliff_reaction", "what": "The robot's own reaction at more than one speed. One event is recorded (54 mm/s, during the robot's own drive back to the charger): pause 1.19 to 1.25 s, 29 mm away at about 205 mm/s by the robot's odometry. Not recorded: where the front axle stops relative to the edge, and any speed above 54 mm/s.", "measure": "At the default control level, drive at a low step edge at several speeds and tape the stop point and the back-up.", "needs": "timed drive at a low step on a barriered surface"},
+    {"name": "command_delay", "what": "Delay from an SDK command to motion, apart from the delay of the state message coming back. The recording has host times only, so the table's 60 ms is the two together, and 60 and 80 ms fit equally well at a 60 ms state period.", "measure": "Log the robot's own timestamp for each state message beside the host's receive time, if the SDK exposes one; or film the treads with the host clock in frame.", "needs": "timed drive on a barriered surface"},
+    {"name": "tof_noise_and_bias", "what": "Bias of the forward range reading, and its noise at more than one distance. Measured at one distance only (237 mm, standard deviation 5.2 mm, robot asleep on the charger).", "measure": "Read the range at taped distances from a flat target.", "needs": "ruler"},
+    {"name": "imu_orientation_noise_bias", "what": "Noise of the IMU while awake and moving, the roll of its frame, and its scale. Now in the table from the recording: its axes turn with the head, its frame is pitched about -0.7 deg, the accelerometer's steady offsets (fitted), and the gyro's residual offset while still (measured). Still missing: noise is measured asleep on the charger only; a roll of the frame cannot be told from the y offset; scale errors cannot be told from offsets with gravity as the only reference.", "measure": "Log the IMU at rest with the robot on each of its sides and on its back, on a surface checked with a level; log it while driving on the surface in use.", "needs": "a level surface and a spirit level"}
+  ]
+}

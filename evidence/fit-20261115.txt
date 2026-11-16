@@ -1,0 +1,15 @@
+replays scored: 129 for the treads, 87 for head and lift
+  command_delay_ms: 30.0 -> 60.0
+  tread_friction_power_fraction: 0.057 -> 0.09884
+  tread_noload_speed_mmps: 319.5 -> 264.58683
+  wheel_stall_torque_mNm: 25.0 -> 100.0
+  wheel_armature_gcm2: 1000.0 -> 2016.0
+  servo_command_delay_ms: 30.0 -> 225.0
+  head_speed_max_radps: 10.0 -> 1.75
+  lift_speed_max_radps: 10.0 -> 2.79
+wheel segments the fit used: 0.456 before, 0.171 after
+wheel segments held out: 0.399 before, 0.145 after
+head and lift segments the fit used: 0.247 before, 0.019 after
+head and lift segments held out: 0.369 before, 0.052 after
+FIT {"command_delay_ms": 60.0, "head_speed_max_radps": 1.75, "lift_speed_max_radps": 2.79, "servo_command_delay_ms": 225.0, "tread_friction_power_fraction": 0.09884, "tread_noload_speed_mmps": 264.58683, "wheel_armature_gcm2": 2016.0, "wheel_stall_torque_mNm": 100.0}
+fit rc=0

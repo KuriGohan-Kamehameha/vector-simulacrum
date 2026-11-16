@@ -1,0 +1,43 @@
+wheel segments the fit used: score 0.170 (mean error as a fraction of each segment's scale)
+  segment        samples  wheel speed rmse mm/s  (of command)  gyro z rmse deg/s
+  spin_ccw_30         58                    2.5          0.08                6.3
+  spin_cw_30          57                    2.0          0.07                7.1
+  spin_ccw_100        41                    7.7          0.08               20.3
+  spin_cw_100         41                    9.1          0.09               20.0
+  back_40             27                    7.2          0.18                  -
+  forward_40          27                    7.1          0.18                  -
+wheel segments held out: score 0.144 (mean error as a fraction of each segment's scale)
+  segment        samples  wheel speed rmse mm/s  (of command)  gyro z rmse deg/s
+  spin_ccw_60         57                    4.7          0.08               11.9
+  spin_cw_60          57                    7.1          0.12               16.6
+  back_80             21                    6.6          0.08                  -
+  forward_80          22                    8.5          0.11                  -
+head and lift segments the fit used: score 0.019 (mean error as a fraction of the joint's range)
+  head_2              21 samples  rmse 0.9 deg
+  head_4              21 samples  rmse 0.7 deg
+  lift_1              21 samples  rmse 1.9 mm
+head and lift segments held out: score 0.052 (mean error as a fraction of the joint's range)
+  head_3              21 samples  rmse 3.8 deg
+  lift_2              21 samples  rmse 2.9 mm
+tread scores with one thing changed (fit set, held out); lower is better; none of these is adopted:
+  table values                                 0.170, 0.144
+  torque x0.5 and inertia x0.5 (same ratio)    0.216, 0.180
+  torque x2 and inertia x2 (same ratio)        0.186, 0.144
+  torque x4 and inertia x4 (same ratio)        0.207, 0.145
+  torque x0.5 alone                            0.239, 0.201
+  torque x2 alone                              0.209, 0.172
+  inertia x0.5 alone                           0.195, 0.175
+  inertia x2 alone                             0.201, 0.167
+  no-load speed 230                            0.165, 0.150
+  no-load speed 320                            0.196, 0.159
+  friction share 0.06                          0.218, 0.154
+  friction share 0.15                          0.159, 0.158
+  command delay 40                             0.193, 0.160
+  command delay 80                             0.172, 0.136
+  tread friction 0.6                           0.176, 0.139
+  tread friction 1.2                           0.184, 0.158
+  mass 150 g                                   0.172, 0.146
+  mass 185 g                                   0.172, 0.146
+  com_x -18                                    0.188, 0.154
+  com_x -30                                    0.170, 0.149
+REPLAY {"fit_servos": {"score": 0.0187, "segments": [{"angle_rmse_deg": 0.8963315020373189, "kind": "head", "label": "head_2", "n": 21}, {"angle_rmse_deg": 0.7010052404353361, "kind": "head", "label": "head_4", "n": 21}, {"height_rmse_mm": 1.9413294539311226, "kind": "lift", "label": "lift_1", "n": 21}]}, "fit_wheels": {"score": 0.1701, "segments": [{"command_mmps": 30.0, "gyro_rmse_dps": 6.291557772209228, "is_spin": true, "kind": "wheels", "label": "spin_ccw_30", "n": 58, "wheel_rmse_mmps": 2.535948438505527}, {"command_mmps": 30.0, "gyro_rmse_dps": 7.1255708786998815, "is_spin": true, "kind": "wheels", "label": "spin_cw_30", "n": 57, "wheel_rmse_mmps": 2.0261449005179113}, {"command_mmps": 100.0, "gyro_rmse_dps": 20.322339537227272, "is_spin": true, "kind": "wheels", "label": "spin_ccw_100", "n": 41, "wheel_rmse_mmps": 7.748327907739428}, {"command_mmps": 100.0, "gyro_rmse_dps": 20.028992028920502, "is_spin": true, "kind": "wheels", "label": "spin_cw_100", "n": 41, "wheel_rmse_mmps": 9.088990928456303}, {"command_mmps": 40.0, "gyro_rmse_dps": 6.42733107143593, "is_spin": false, "kind": "wheels", "label": "back_40", "n": 27, "wheel_rmse_mmps": 7.238016916869488}, {"command_mmps": 40.0, "gyro_rmse_dps": 1.4855085665259977, "is_spin": false, "kind": "wheels", "label": "forward_40", "n": 27, "wheel_rmse_mmps": 7.1050321238880745}]}, "hold_servos": {"score": 0.052, "segments": [{"angle_rmse_deg": 3.7588115976899688, "kind": "head", "label": "head_3", "n": 21}, {"height_rmse_mm": 2.8724084545250492, "kind": "lift", "label": "lift_2", "n": 21}]}, "hold_wheels": {"score": 0.1436, "segments": [{"command_mmps": 60.0, "gyro_rmse_dps": 11.872650728911298, "is_spin": true, "kind": "wheels", "label": "spin_ccw_60", "n": 57, "wheel_rmse_mmps": 4.664159727637153}, {"command_mmps": 60.0, "gyro_rmse_dps": 16.565249413071104, "is_spin": true, "kind": "wheels", "label": "spin_cw_60", "n": 57, "wheel_rmse_mmps": 7.085938633363224}, {"command_mmps": 80.0, "gyro_rmse_dps": 7.0508672254148355, "is_spin": false, "kind": "wheels", "label": "back_80", "n": 21, "wheel_rmse_mmps": 6.597257727556922}, {"command_mmps": 80.0, "gyro_rmse_dps": 1.4894901881992737, "is_spin": false, "kind": "wheels", "label": "forward_80", "n": 22, "wheel_rmse_mmps": 8.473219845221447}]}, "sensitivity": {"com_x -18": [0.188, 0.154], "com_x -30": [0.17, 0.149], "command delay 40": [0.193, 0.16], "command delay 80": [0.172, 0.136], "friction share 0.06": [0.218, 0.154], "friction share 0.15": [0.159, 0.158], "inertia x0.5 alone": [0.195, 0.175], "inertia x2 alone": [0.201, 0.167], "mass 150 g": [0.172, 0.146], "mass 185 g": [0.172, 0.146], "no-load speed 230": [0.165, 0.15], "no-load speed 320": [0.196, 0.159], "table values": [0.17, 0.144], "torque x0.5 alone": [0.239, 0.201], "torque x0.5 and inertia x0.5 (same ratio)": [0.216, 0.18], "torque x2 alone": [0.209, 0.172], "torque x2 and inertia x2 (same ratio)": [0.186, 0.144], "torque x4 and inertia x4 (same ratio)": [0.207, 0.145], "tread friction 0.6": [0.176, 0.139], "tread friction 1.2": [0.184, 0.158]}}

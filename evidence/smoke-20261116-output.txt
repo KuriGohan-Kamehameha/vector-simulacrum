@@ -1,0 +1,33 @@
+--- train (PPO, rsl_rl)
+iter  reward/step  fwd err mm/s  turn err deg/s  episodes  falls  reactions  action std  wall s
+   0        0.378          73.0            67.7         0      0          0       0.497    2.97
+  12        0.595          36.8            63.5        11      2          5       0.481    3.08
+  24        0.758          24.3            58.8         8      2          4       0.471    3.30
+  36        0.817          23.3            54.4        11      0          6       0.475    2.80
+  48        0.803          23.4            43.6         7      2          2       0.466    2.89
+  60        0.834          22.3            42.1         7      2          1       0.462    3.08
+  72        0.884          21.6            45.5         5      0          3       0.439    2.77
+  84        0.834          23.4            55.5         6      0          1       0.435    2.94
+  96        0.884          21.3            40.6         7      2          0       0.420    2.49
+ 108        0.874          23.3            35.1         7      1          2       0.421    2.56
+ 120        0.893          21.0            36.4         9      2          2       0.389    2.96
+ 132        0.936          22.1            30.3         6      0          2       0.375    2.62
+ 144        0.917          23.6            28.5        11      1          7       0.390    2.67
+ 149        0.956          21.7            28.7         6      0          3       0.392    2.65
+summary: {'iterations': 150, 'iterations_compared': 15, 'env_steps_total': 153600, 'episodes_total': 1233, 'falls_total': 122, 'override_episodes_total': 281, 'cliff_reactions_total': 505, 'time_limits_total': 606, 'reward_per_step_first': 0.5508, 'reward_per_step_last': 0.9435, 'forward_error_mmps_first': 45.367, 'forward_error_mmps_last': 21.5851, 'turn_error_dps_first': 61.152, 'turn_error_dps_last': 30.6134}
+wall time 422.8 s; files in /root/vector-runs/smoke4
+--- train (PPO, rsl_rl): exit 0, 431.2 s
+--- run the ONNX policy without torch, compare with torch
+closed loop: 100 steps, reward 1.0168 per step, forward error 18.31 mm/s, turn error 29.82 deg/s, ended: None
+REPORT {"end_reason": null, "forward_error_mmps": 18.31, "parity": {"closed_loop_steps": 120, "closed_loop_steps_identical": 77, "max_action_difference": 2.980232238769531e-07, "rows": 120, "torch_imported": false}, "reward_per_step": 1.0168, "steps": 100, "torch_imported": false, "turn_error_dps": 29.82}
+--- run the ONNX policy without torch, compare with torch: exit 0, 1.2 s
+--- compare with baselines on unseen randomised robots
+16 randomised robots x 200 policy steps = 3200 environment steps each, seed 1000
+policy               reward/step  fwd err mm/s  turn err deg/s  episodes  falls  reactions  time limits
+onnx policy                1.029          17.4            32.6        18      3          2           13
+stand still                0.360          73.4            60.5        16      0          0           16
+no-slip controller         1.125           7.7            33.0        23      4          8           11
+EVALUATION {"rows": {"no-slip controller": {"cliff_reactions": 8, "env_steps": 3200, "episodes": 23, "falls": 4, "forward_error_mmps": 7.695546233654023, "reward_per_step": 1.124850005209446, "time_limits": 11, "turn_error_dps": 32.95514912605286}, "onnx policy": {"cliff_reactions": 2, "env_steps": 3200, "episodes": 18, "falls": 3, "forward_error_mmps": 17.42283695459366, "reward_per_step": 1.0289731230586767, "time_limits": 13, "turn_error_dps": 32.56086241722107}, "stand still": {"cliff_reactions": 0, "env_steps": 3200, "episodes": 16, "falls": 0, "forward_error_mmps": 73.44440483093261, "reward_per_step": 0.3599652749300003, "time_limits": 16, "turn_error_dps": 60.51460960388184}}, "torch_imported": false}
+--- compare with baselines on unseen randomised robots: exit 0, 26.0 s
+smoke run: all three stages passed; exit codes [0, 0, 0]
+rc=0

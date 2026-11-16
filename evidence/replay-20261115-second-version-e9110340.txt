@@ -1,0 +1,19 @@
+fit wheels score 0.373
+   spin_ccw_30 n 58 {'wheel_rmse_mmps': 8.1, 'gyro_rmse_dps': 12.1}
+   spin_cw_30 n 57 {'wheel_rmse_mmps': 7.2, 'gyro_rmse_dps': 10.6}
+   spin_ccw_100 n 41 {'wheel_rmse_mmps': 21.6, 'gyro_rmse_dps': 30.7}
+   spin_cw_100 n 41 {'wheel_rmse_mmps': 18.7, 'gyro_rmse_dps': 26.1}
+   back_40 n 27 {'wheel_rmse_mmps': 15.9, 'gyro_rmse_dps': 6.4}
+   forward_40 n 27 {'wheel_rmse_mmps': 15.9, 'gyro_rmse_dps': 1.5}
+hold wheels score 0.328
+   spin_ccw_60 n 57 {'wheel_rmse_mmps': 11.0, 'gyro_rmse_dps': 19.7}
+   spin_cw_60 n 57 {'wheel_rmse_mmps': 14.6, 'gyro_rmse_dps': 22.3}
+   back_80 n 21 {'wheel_rmse_mmps': 22.6, 'gyro_rmse_dps': 7.0}
+   forward_80 n 22 {'wheel_rmse_mmps': 25.7, 'gyro_rmse_dps': 1.5}
+fit servos score 0.247
+   head_2 n 21 {'angle_rmse_deg': 15.1}
+   head_4 n 21 {'angle_rmse_deg': 6.4}
+   lift_1 n 21 {'height_rmse_mm': 25.2}
+hold servos score 0.369
+   head_3 n 21 {'angle_rmse_deg': 20.1}
+   lift_2 n 21 {'height_rmse_mm': 26.3}

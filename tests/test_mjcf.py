@@ -1,0 +1,141 @@
+"""The generated MJCF follows the parameter table. Needs no MuJoCo. Authored-by: CPCS."""
+
+from __future__ import annotations
+
+import math
+import unittest
+import xml.etree.ElementTree as ET
+
+import _common  # noqa: F401
+from simulacrum import mjcf, params
+
+
+def _find(root: ET.Element, tag: str, name: str) -> ET.Element:
+    for elem in root.iter(tag):
+        if elem.get("name") == name:
+            return elem
+    raise AssertionError(f"no <{tag} name={name!r}> in the model")
+
+
+def _floats(text: str) -> list:
+    return [float(x) for x in text.split()]
+
+
+class GeneratedModel(unittest.TestCase):
+    def setUp(self) -> None:
+        self.doc = params.load()
+        self.v = params.values(self.doc)
+        self.root = ET.fromstring(mjcf.build_mjcf(self.v))
+
+    def test_has_the_parts_the_robot_has(self) -> None:
+        for body in ("chassis", "wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "head", "lift_arm", "lift_fork"):
+            _find(self.root, "body", body)
+        for actuator in ("left_wheel", "right_wheel"):
+            _find(self.root, "general", actuator)
+        for actuator in ("head", "lift"):
+            _find(self.root, "position", actuator)
+        self.assertEqual(len(list(self.root.iter("rangefinder"))), 5)
+        self.assertEqual(len(list(self.root.iter("gyro"))), 1)
+        self.assertEqual(len(list(self.root.iter("accelerometer"))), 1)
+        _find(self.root, "camera", "head_cam")
+
+    def test_same_table_gives_the_same_text(self) -> None:
+        self.assertEqual(mjcf.build_mjcf(self.v), mjcf.build_mjcf(params.values(self.doc)))
+
+    def test_wheel_radius_comes_from_the_table(self) -> None:
+        self.assertAlmostEqual(float(_find(self.root, "geom", "wheel_fl_geom").get("size")), 0.0145, places=9)
+        changed = ET.fromstring(mjcf.build_mjcf(params.values(self.doc, {"wheel_front_radius_mm": 15.0})))
+        self.assertAlmostEqual(float(_find(changed, "geom", "wheel_fl_geom").get("size")), 0.015, places=9)
+        self.assertAlmostEqual(_floats(_find(changed, "body", "wheel_fl").get("pos"))[2], 0.015, places=9)
+
+    def test_every_ranged_robot_parameter_changes_the_model_or_is_used_by_the_layer(self) -> None:
+        layer_only = {
+            "cliff_detect_range_mm", "cliff_reaction_backup_mm", "cliff_reaction_backup_speed_mmps",
+            "cliff_event_delay_ms", "command_delay_ms", "wheel_accel_default_mmps2",
+            "wheel_decel_default_mmps2", "point_turn_accel_default_radps2", "heading_hold_gain_mmps_per_rad",
+            "drive_done_mm", "wheel_speed_max_mmps", "servo_command_delay_ms", "head_speed_max_radps",
+            "lift_speed_max_radps", "cliff_reaction_pause_ms", "gyro_noise_rms_dps", "gyro_bias_dps", "accel_noise_rms_mg", "accel_bias_mg",
+            "tof_range_std_fraction"}
+        base = mjcf.build_mjcf(self.v)
+        unchanged = []
+        for name, entry in self.doc["parameters"].items():
+            if entry["kind"] != "robot" or "low" not in entry or name in layer_only:
+                continue
+            if mjcf.build_mjcf(params.values(self.doc, {name: entry["high"]})) == base:
+                unchanged.append(name)
+        self.assertEqual(unchanged, [])
+
+    def test_table_size_comes_from_the_table(self) -> None:
+        size = _floats(_find(self.root, "geom", "table").get("size"))
+        self.assertAlmostEqual(size[0], 0.5 * self.v["table_length_mm"] / 1000.0, places=9)
+        self.assertAlmostEqual(size[1], 0.5 * self.v["table_width_mm"] / 1000.0, places=9)
+        wide = ET.fromstring(mjcf.build_mjcf(params.values(self.doc, {"table_length_mm": 900.0})))
+        self.assertAlmostEqual(_floats(_find(wide, "geom", "table").get("size"))[0], 0.45, places=9)
+        floor = _floats(_find(self.root, "geom", "floor").get("pos"))
+        self.assertAlmostEqual(floor[2], -self.v["table_height_mm"] / 1000.0, places=9)
+
+    def test_cliff_sensors_sit_where_the_table_says_in_manual_order(self) -> None:
+        v = self.v
+        expected = {"front_left": (v["cliff_front_x_mm"], v["cliff_y_mm"]),
+                    "front_right": (v["cliff_front_x_mm"], -v["cliff_y_mm"]),
+                    "back_left": (v["cliff_rear_x_mm"], v["cliff_y_mm"]),
+                    "back_right": (v["cliff_rear_x_mm"], -v["cliff_y_mm"])}
+        names = [s.get("name") for s in self.root.iter("rangefinder")][:4]
+        self.assertEqual(names, ["cliff_" + n for n in v["cliff_sensor_order"]])
+        for name, (x_mm, y_mm) in expected.items():
+            pos = _floats(_find(self.root, "site", "cliff_" + name).get("pos"))
+            self.assertAlmostEqual(pos[0] * 1000.0, x_mm, places=6)
+            self.assertAlmostEqual(pos[1] * 1000.0, y_mm, places=6)
+            self.assertAlmostEqual(pos[2] * 1000.0, v["cliff_sensor_height_mm"], places=6)
+            self.assertEqual(_floats(_find(self.root, "site", "cliff_" + name).get("zaxis")), [0.0, 0.0, -1.0])
+
+    def test_time_of_flight_site_is_tilted_up_by_the_table_angle(self) -> None:
+        site = _find(self.root, "site", "tof")
+        axis = _floats(site.get("zaxis"))
+        self.assertAlmostEqual(math.degrees(math.atan2(axis[2], axis[0])), self.v["tof_tilt_up_deg"], places=6)
+        self.assertEqual([round(c * 1000.0, 6) for c in _floats(site.get("pos"))], self.v["tof_position_mm"])
+
+    def test_joint_limits_and_speed_limit_come_from_the_table(self) -> None:
+        head = _floats(_find(self.root, "joint", "head_joint").get("range"))
+        self.assertAlmostEqual(math.degrees(head[0]), self.v["head_angle_min_deg"], places=6)
+        self.assertAlmostEqual(math.degrees(head[1]), self.v["head_angle_max_deg"], places=6)
+        lift = _floats(_find(self.root, "joint", "lift_joint").get("range"))
+        self.assertAlmostEqual(mjcf.lift_height_of_angle(self.v, lift[0]), self.v["lift_height_min_mm"], places=6)
+        self.assertAlmostEqual(mjcf.lift_height_of_angle(self.v, lift[1]), self.v["lift_height_max_mm"], places=6)
+        self.assertEqual(_floats(_find(self.root, "general", "left_wheel").get("ctrlrange")), [-1.0, 1.0])
+
+    def test_tread_motor_is_the_linear_motor_the_table_describes(self) -> None:
+        """Held at a steady speed the motor needs power = speed / no-load speed + friction share."""
+        v = self.v
+        motor = _find(self.root, "general", "left_wheel")
+        stall = float(motor.get("gainprm"))
+        drag = -_floats(motor.get("biasprm"))[2]
+        friction = float(_find(self.root, "joint", "wheel_fl_joint").get("frictionloss"))
+        self.assertAlmostEqual(stall * 1000.0, v["wheel_stall_torque_mNm"], places=9)
+        for speed in (60.0, 120.0, 220.0):
+            wheel = speed / v["wheel_front_radius_mm"]
+            power = (drag * wheel + friction) / stall
+            line = speed / v["tread_noload_speed_mmps"] + v["tread_friction_power_fraction"]
+            self.assertAlmostEqual(power, line, places=9, msg=str(speed))
+        self.assertIsNone(_find(self.root, "joint", "wheel_rl_joint").get("frictionloss"))
+
+    def test_part_masses_add_up_to_the_total(self) -> None:
+        masses = mjcf.derive(self.v)["masses_g"]
+        total = masses["chassis"] + masses["head"] + masses["arm"] + masses["fork"] + 4.0 * masses["wheel"]
+        self.assertAlmostEqual(total, self.v["total_mass_g"], places=9)
+        with self.assertRaises(AssertionError):
+            mjcf.derive(params.values(self.doc, {"head_mass_g": 400.0}))
+
+    def test_timestep_must_divide_the_control_period(self) -> None:
+        with self.assertRaises(AssertionError):
+            mjcf.derive(params.values(self.doc, {"sim_timestep_ms": 0.7}))
+
+    def test_obstacles_are_placed_in_millimetres(self) -> None:
+        root = ET.fromstring(mjcf.build_mjcf(self.v, [(150.0, 0.0, 50.0, 10.0, 200.0, 100.0)]))
+        box = _find(root, "geom", "obstacle_0")
+        self.assertEqual([round(c, 9) for c in _floats(box.get("pos"))], [0.15, 0.0, 0.05])
+        self.assertEqual([round(c, 9) for c in _floats(box.get("size"))], [0.005, 0.1, 0.05])
+
+
+if __name__ == "__main__":
+    unittest.main()

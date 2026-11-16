@@ -1,0 +1,46 @@
+parameters: {'measured': 9, 'fitted': 10, 'manual': 17, 'sdk': 74, 'assumed': 21, 'chosen': 7, 'total': 138, 'missing': 14}
+drive 200 mm at 100 mm/s: completed, x 203.88 y 0.00 mm, heading 0.001 deg, 2.55 s
+drive -100 mm at 60 mm/s: completed, x -101.84 y -0.00 mm, heading 0.000 deg, 2.10 s
+drive 50 mm at 20 mm/s: completed, x 49.57 y 0.00 mm, heading 0.000 deg, 2.77 s
+drive 250 mm at 160 mm/s: completed, x 255.73 y 0.00 mm, heading 0.001 deg, 2.29 s
+turn 90 deg at 60 deg/s: completed, turned 88.55 deg, 3.83 s
+turn -180 deg at 120 deg/s: completed, turned -179.43 deg, 3.83 s
+turn 30 deg at 60 deg/s: completed, turned 28.53 deg, 1.59 s
+turn 30 deg at 15 deg/s: completed, turned 28.05 deg, 6.83 s
+turn centre, from a 180 deg turn: x -23.8 y 1.2 mm (firmware drive centre offset -25 mm)
+spin at +-50 mm/s, after 4 s: 55.4 deg/s, 0.44 of the no-slip rate 124.6 (firmware: about 360 deg/s at full speed)
+spin at +-220 mm/s, after 4 s: 249.9 deg/s, 0.46 of the no-slip rate 548.0 (firmware: about 360 deg/s at full speed)
+spin at +-30 mm/s: model 0.456 counter-clockwise, 0.455 clockwise of no-slip; short of the recording's mean 0.50 by 3.3 deg/s
+spin at +-60 mm/s: model 0.443 counter-clockwise, 0.438 clockwise of no-slip; short of the recording's mean 0.50 by 8.6 deg/s
+spin at +-100 mm/s: model 0.452 counter-clockwise, 0.439 clockwise of no-slip; short of the recording's mean 0.50 by 12.0 deg/s
+sensitivity of the spin fraction at +-60 mm/s to com_x_mm (the table's value is the only one used elsewhere):
+  com_x -30 mm: 0.573
+  com_x -24 mm: 0.443
+  com_x -19 mm: 0.560
+  com_x -14 mm: 0.741
+scatter in a spin at +-30 mm/s, largest axis: gyro 7.3 deg/s (recording 5.6 and 1.9), accelerometer 723 mg (recording 32 and 19)
+scatter in a spin at +-60 mm/s, largest axis: gyro 10.9 deg/s (recording 11.3 and 3.4), accelerometer 884 mg (recording 71 and 52)
+scatter in a spin at +-100 mm/s, largest axis: gyro 22.7 deg/s (recording 18.8 and 5.2), accelerometer 1058 mg (recording 185 and 124)
+step to 50 mm/s: 90% after 0.380 s; command cut: rolls on 5.4 mm
+step to 100 mm/s: 90% after 0.310 s; command cut: rolls on 12.3 mm
+step to 160 mm/s: 90% after 0.290 s; command cut: rolls on 21.2 mm
+edge, level default, 50 mm/s: cancelled_cliff, front axle 0.7 mm past the edge at most, fallen False, reactions 1
+edge, level default, 100 mm/s: cancelled_cliff, front axle 5.4 mm past the edge at most, fallen False, reactions 1
+edge, level default, 140 mm/s: cancelled_cliff, front axle 9.0 mm past the edge at most, fallen False, reactions 1
+edge, level default, 150 mm/s: cancelled_cliff, front axle 9.9 mm past the edge at most, fallen False, reactions 1
+edge, level default, 160 mm/s: cancelled_cliff, front axle 10.4 mm past the edge at most, fallen False, reactions 1
+edge, level default, 170 mm/s: cancelled_cliff, front axle 12.0 mm past the edge at most, fallen False, reactions 1
+edge, level default, 220 mm/s: cancelled_cliff, front axle 16.0 mm past the edge at most, fallen False, reactions 1
+edge, level override, 50 mm/s: aborted_off_ground, front axle 76.9 mm past the edge at most, fallen True, reactions 0
+edge, level override, 100 mm/s: aborted_off_ground, front axle 77.5 mm past the edge at most, fallen True, reactions 0
+edge, level override, 140 mm/s: aborted_off_ground, front axle 67.7 mm past the edge at most, fallen True, reactions 0
+edge, level override, 150 mm/s: aborted_off_ground, front axle 71.0 mm past the edge at most, fallen True, reactions 0
+edge, level override, 160 mm/s: aborted_off_ground, front axle 128.0 mm past the edge at most, fallen True, reactions 0
+edge, level override, 170 mm/s: aborted_off_ground, front axle 132.4 mm past the edge at most, fallen True, reactions 0
+edge, level override, 220 mm/s: aborted_off_ground, front axle 119.0 mm past the edge at most, fallen True, reactions 0
+sensitivity to wheel_stall_torque_mNm (the table has 100; the other values are not adopted):
+  50 mN*m: spin at full speed 231 deg/s; no fall with the reaction on at 50, 100, 140, 150, 160, 170 mm/s (of 50, 100, 140, 150, 160, 170, 220)
+  100 mN*m: spin at full speed 250 deg/s; no fall with the reaction on at 50, 100, 140, 150, 160, 170, 220 mm/s (of 50, 100, 140, 150, 160, 170, 220)
+  200 mN*m: spin at full speed 253 deg/s; no fall with the reaction on at 50, 100, 140, 150, 160, 170, 220 mm/s (of 50, 100, 140, 150, 160, 170, 220)
+5 s of robot time took 0.55 s on one process (9.1 times real time)
+rc=0
