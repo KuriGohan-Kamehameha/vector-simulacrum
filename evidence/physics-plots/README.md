@@ -2,6 +2,10 @@
 
 ## Turning and tread contact
 
+![Firmware sensor timing through the held-out stops](sensor-timing-braking.png)
+
+[Firmware and SDK trace, phase assumptions, and held-out scores](../hw-rec-20261119/sensor-timing.md)
+
 ![Measured and simulated braking in both directions](repeated-braking.png)
 
 [Held-out braking scores and signed wheel and gyro traces](../hw-rec-20261119/repeated-braking.md)
