@@ -93,11 +93,8 @@ def _attempt(label: str, call: Callable[[], Any]) -> Any:
 
 
 def tool_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Entries of the parameter table for one model, filtered by provenance and by part of the name."""
-    model = str(args.get("model") or "vector_1")
-    if model not in params.MODELS:
-        raise ToolError(f"model must be one of {sorted(params.MODELS)}")
-    doc = params.load(model=model)
+    """Entries of the parameter table, filtered by provenance and by part of the name."""
+    doc = params.load()
     provenance = args.get("provenance")
     if provenance is not None and provenance not in params.PROVENANCE:
         raise ToolError(f"provenance must be one of {list(params.PROVENANCE)}")
@@ -109,12 +106,10 @@ def tool_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     for name in sorted(doc["parameters"]):
         entry = doc["parameters"][name]
         if (provenance is None or entry["provenance"] == provenance) and part in name:
-            row = {key: entry[key] for key in ("value", "unit", "provenance", "kind", "low", "high", "inherited",
-                                               "overrides_base") if key in entry}
+            row = {key: entry[key] for key in ("value", "unit", "provenance", "kind", "low", "high") if key in entry}
             row["name"], row["source"] = name, str(entry.get("source", ""))[:SOURCE_CHARS]
             found.append(row)
-    return {"model": model, "robot": doc["robot"], "counts": params.summary(doc), "matched": len(found),
-            "entries": found[:limit]}
+    return {"counts": params.summary(doc), "matched": len(found), "entries": found[:limit]}
 
 
 def _run_markers(commands: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -279,10 +274,8 @@ def _schema(properties: Dict[str, Any], required: Tuple[str, ...] = ()) -> Dict[
 
 PATH_ARG = {"type": "string", "description": ".jsonl recording inside the skill directory; default: the first recording"}
 TOOLS: Dict[str, Tuple[str, Dict[str, Any], Callable[[Dict[str, Any]], Dict[str, Any]]]] = {
-    "parameters": ("Entries of the Vector parameter table with provenance, range and source, for Vector 1.0 "
-                   "(vector_1, default) or 2.0 (vector_2, where inherited 1.0 measurements are marked).",
-                   _schema({"model": {"type": "string", "enum": sorted(params.MODELS)},
-                            "provenance": {"type": "string", "enum": list(params.PROVENANCE)},
+    "parameters": ("Entries of the Vector parameter table with provenance, range and source.",
+                   _schema({"provenance": {"type": "string", "enum": list(params.PROVENANCE)},
                             "name": {"type": "string", "description": "part of the parameter name"},
                             "limit": {"type": "integer", "minimum": 1, "maximum": MAX_LIST}}), tool_parameters),
     "recording_summary": ("Rows, run markers, spins, sensor scatter and gyro figures of one recording of the real robot.",

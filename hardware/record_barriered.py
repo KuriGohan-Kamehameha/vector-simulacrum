@@ -3,7 +3,7 @@
 Authored-by: CPCS (cpcs-5f62f24). Runs on the wire-pod host with its anki_vector install,
 fed on stdin; writes JSON lines to stdout and leaves nothing behind but a lock file it removes.
 
-First run on a robot 2026-11-18 (evidence/hw-rec-20261118). This copy is kept in
+First run on a robot 2026-11-18 (0dd1cafe; evidence/hw-rec-20261118). This copy is kept in
 skills/vector-simulacrum so the sequence the model needs is written down beside the model. Nothing
 in the skill imports it; tests/test_recorder.py runs it against a stand-in SDK with a stand-in clock.
 Edited by cpcs-66ffc23, logging only, from the original with sha256

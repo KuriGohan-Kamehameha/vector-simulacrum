@@ -81,15 +81,6 @@ class Parameters(unittest.TestCase):
         self.assertTrue(com["low"] < com["value"] < com["high"])
         self.assertTrue(call("parameters", {"provenance": "guessed"})["error"])
 
-    def test_the_vector_2_set_marks_what_it_inherits(self) -> None:
-        body = call("parameters", {"model": "vector_2", "name": "display_resolution"})["body"]
-        self.assertEqual((body["model"], body["entries"][0]["value"], body["entries"][0]["overrides_base"]),
-                         ("vector_2", [160, 80], True))
-        noload = call("parameters", {"model": "vector_2", "name": "tread_noload"})["body"]["entries"][0]
-        self.assertIn("not verified on a Vector 2.0", noload["inherited"])
-        self.assertNotIn("inherited", call("parameters", {"name": "tread_noload"})["body"]["entries"][0])
-        self.assertTrue(call("parameters", {"model": "vector_3"})["error"])
-
 
 class Recordings(unittest.TestCase):
     def test_summary_of_the_first_recording(self) -> None:
@@ -192,7 +183,7 @@ class Plan(unittest.TestCase):
         self.assertIn("EDGE_START_MM=40", shlex.split(planned["body"]["argv"][2]))
 
     def test_a_note_that_would_break_the_shell_line_is_refused(self) -> None:
-        for note in ("the operator's table", 'a "quoted" word', "$(reboot)", "back`tick`"):
+        for note in ("Bob's table", 'a "quoted" word', "$(reboot)", "back`tick`"):
             out = call("recorder_plan", {"phases": ["rest"], "note": note})
             self.assertTrue(out["error"], note)
             self.assertIn("note:", out["body"]["error"])

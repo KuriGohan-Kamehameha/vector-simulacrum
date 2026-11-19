@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 import _common
 from simulacrum import motor_heat_fit, params
 
-RUN_F = Path(__file__).resolve().parent.parent / "evidence" / "hw-rec-20261118" / "run-f-endurance-unit1.jsonl"
+RUN_F = Path(__file__).resolve().parent.parent / "evidence" / "hw-rec-20261118" / "run-f-endurance-0dd1cafe.jsonl"
 
 
 def constructed_run(tau: float, loss: float, cycles: int = 15) -> List[Dict[str, Any]]:

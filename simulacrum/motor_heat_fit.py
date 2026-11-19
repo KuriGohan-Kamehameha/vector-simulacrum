@@ -1,6 +1,6 @@
 """How a tread's top speed falls under sustained full power: a first-order heat state, per tread. Authored-by: CPCS.
 
-    python3 -m simulacrum.motor_heat_fit evidence/hw-rec-20261118/run-f-endurance-unit1.jsonl
+    python3 -m simulacrum.motor_heat_fit evidence/hw-rec-20261118/run-f-endurance-0dd1cafe.jsonl
 
 Fitted from the recording alone, without the MuJoCo model, the way imu_fit.py fits the accelerometer.
 In an endurance run every spin is commanded above the treads' top speed, so the duty is full and the

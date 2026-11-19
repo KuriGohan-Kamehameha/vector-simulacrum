@@ -8,7 +8,6 @@ MuJoCo, so the checks run anywhere.
 from __future__ import annotations
 
 import json
-import os
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -18,58 +17,14 @@ CHOSEN_KINDS = ("scene", "numeric")
 KINDS = ("robot", "scene", "numeric", "reference")
 SOURCE_KINDS = ("vendor_firmware", "vendor_webots_model", "vendor_sdk", "household_code")
 TABLE_PATH = Path(__file__).resolve().parent.parent / "parameters.json"
-# The base table describes Vector 1.0 by its sources; a variant file replaces the entries that differ.
-MODELS = {"vector_1": None, "vector_2": TABLE_PATH.parent / "parameters-vector2.json"}
-MODEL_ENV = "VECTOR_MODEL"
 MAX_ENTRIES = 512
 
 
-def chosen_model(model: Optional[str] = None) -> str:
-    """The model asked for, else the VECTOR_MODEL environment variable, else vector_1."""
-    name = model if model is not None else os.environ.get(MODEL_ENV, "vector_1")
-    if name not in MODELS:
-        raise ValueError(f"unknown model {name!r}; one of {sorted(MODELS)}")
-    return name
-
-
-def _apply_variant(doc: Dict[str, Any], variant: Dict[str, Any]) -> Dict[str, Any]:
-    """The base table with the variant's entries replacing the base ones. Inherited measured and fitted
-    entries are marked, since they were not taken on the variant's hardware."""
-    assert variant.get("schema") == "vector-simulacrum-parameters-variant/1", "not a variant file"
-    assert variant.get("base") == TABLE_PATH.name, "variant names another base table"
-    overrides, sources = variant.get("overrides"), variant.get("sources", {})
-    assert isinstance(overrides, dict) and overrides, "variant has no overrides"
-    unknown = sorted(set(overrides) - set(doc["parameters"]))
-    if unknown:
-        raise ValueError(f"variant overrides names the base table lacks: {unknown}")
-    clash = sorted(set(sources) & set(doc["sources"]))
-    clash = [key for key in clash if sources[key] != doc["sources"][key]]
-    if clash:
-        raise ValueError(f"variant redefines base sources: {clash}")
-    out = dict(doc, robot=variant["robot"], model=variant["model"], sources=dict(doc["sources"], **sources))
-    params: Dict[str, Any] = {}
-    for name, entry in doc["parameters"].items():
-        if name in overrides:
-            params[name] = dict(overrides[name], overrides_base=True)
-        elif entry["provenance"] in ("measured", "fitted"):
-            params[name] = dict(entry, inherited=variant["inherited_note"])
-        else:
-            params[name] = entry
-    out["parameters"] = params
-    return out
-
-
-def load(path: Optional[Path] = None, model: Optional[str] = None) -> Dict[str, Any]:
-    """Read the table for a model (vector_1 by default, or VECTOR_MODEL) and refuse one that fails its checks."""
+def load(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Read the table and refuse to return one that fails its checks."""
     table_path = Path(path) if path is not None else TABLE_PATH
     with open(table_path, "r", encoding="utf-8") as handle:
         doc = json.load(handle)
-    name = chosen_model(model)
-    if MODELS[name] is not None:
-        with open(MODELS[name], "r", encoding="utf-8") as handle:
-            doc = _apply_variant(doc, json.load(handle))
-    else:
-        doc = dict(doc, model=name)
     problems = validate(doc)
     if problems:
         raise ValueError("parameter table invalid: " + "; ".join(problems[:8]))
@@ -204,8 +159,6 @@ def summary(doc: Dict[str, Any]) -> Dict[str, int]:
     for entry in doc["parameters"].values():
         counts[entry["provenance"]] += 1
     counts["total"] = len(doc["parameters"])
-    counts["inherited"] = sum(1 for entry in doc["parameters"].values() if "inherited" in entry)
-    counts["overridden"] = sum(1 for entry in doc["parameters"].values() if entry.get("overrides_base"))
     counts["missing"] = len(doc.get("missing", []))
     assert sum(counts[name] for name in PROVENANCE) == counts["total"], "provenance counts do not add up"
     return counts

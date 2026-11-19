@@ -16,8 +16,8 @@ part of it.** One robot, one run of 162 s, one surface, one battery charge
 (4.10 V falling to 3.96 V), wheel speeds up to 100 mm/s. Nothing here says
 anything about another robot, another surface, or faster driving.
 
-Of 146 parameters: 10 are measured on the recordings, 12 are fitted to them, 17
-come from the manual, 77 from vendor or household software, 23 are still
+Of 145 parameters: 10 are measured on the recordings, 12 are fitted to them, 17
+come from the manual, 76 from vendor or household software, 23 are still
 assumed about the robot, and 7 are settings of the scene and the solver that
 have no real value to find. On the segments the fit never saw, the model's
 wheel speed and gyro error fell from 0.33 of each segment's scale (the
@@ -271,40 +271,9 @@ pointing to the end of the assumed range, is not enough to change a value:
 `com_x_mm` stays -24 and assumed. The rear wheelstand decides it: -24
 predicts a balance at 64.9 degrees, -29 at 59.4.
 
-### Vector 2.0: a separate set (2026-11-18)
-
-`parameters-vector2.json` holds the entries where Digital Dream Labs'
-Vector 2.0 is known or suspected to differ; everything else is inherited from
-`parameters.json`. Load it with `params.load(model="vector_2")`, or set
-`VECTOR_MODEL=vector_2` for every tool at once (the MCP `parameters` tool
-takes `model`).
-
-What is known to differ, with sources: the display (160x80 against 184x96,
-DDL's boot display code), the camera (a 1600x1200 sensor), and the battery
-(a new cell in a removable compartment, "up to 30 % longer runtime"). One
-community page says the board, IMU, distance and cliff sensors, motors and
-gearboxes are the same. No source gives 2.0's mass, dimensions or wheel
-geometry. So the 2.0 set replaces seven entries:
-
-| Entry | 1.0 | 2.0 | Why |
-|---|---|---|---|
-| `display_resolution_px` | 184x96 | 160x80 | Sourced |
-| `battery_capacity_mah` | 320 | 416 assumed (320-600) | 320 x 1.3 from DDL's runtime claim; 600 from one unconfirmed listing |
-| `total_mass_g` | 170 (150-185) | 170 (150-200) | New battery and compartment; range widened |
-| `com_x_mm`, `com_z_mm` | -24 (-30..-14), 22 (15..30) | same, ranges 3 mm wider | The battery is the heaviest part whose place is not known |
-| `camera_fov_horizontal_deg` | 90 | 90 assumed (90-120) | One aggregator says 120 |
-| `camera_fov_vertical_deg` | 50 | 50 assumed (50-90) | 4:3 sensor; how 2.0 crops it is not known |
-
-The 22 measured and fitted values (tread drive, servo timing, IMU offsets,
-heat) come from unit 1, whose hardware revision was never recorded.
-In the 2.0 set each carries `inherited`, so it cannot pass for a 2.0
-measurement. The robot's factory record says which it is: HW_VER at offset 4
-of `/dev/mmcblk0p29`, 0x20 or above for 2.0. On the body, 1.0 prints "S/N"
-near the top of the track, 2.0 an "ESN" underneath.
-
 ### Battery, heat and the top speed (2026-11-18)
 
-The operator: "simulate voltage sag and other factors that affect motor
+Operator: "simulate voltage sag and other factors that affect motor
 efficacy/responsiveness ... from real sustained-load tests on multiple units".
 What one unit so far gives:
 
@@ -347,8 +316,8 @@ initial rate, 0.13 to 0.34 %/s; those are the ranges training draws from.
 The model reproduces the right tread's fall under the same schedule within
 the test's +/-50 % (`tests/test_motor_heat.py`).
 
-**Not yet met.** "Multiple units": only one unit has been run; the other two
-were offline. A run to the plateau (the full 600 s or more, away
+**Not yet met.** "Multiple units": only 0dd1cafe has been run; 0dd1beef and
+0dd1dead were offline. A run to the plateau (the full 600 s or more, away
 from edges) would pin the heat's time constant. The SDK cannot see motor
 temperature, so heat is an inference from one tread falling while the other
 holds.
@@ -1219,7 +1188,7 @@ between axes would not, and that is not known either.
 
 ### Against the hardware: the run when the robot is back
 
-The operator's go, 2026-11-18: when the robot is back within reach of its cube, this
+Operator go, 2026-11-18: when the robot is back within reach of its cube, this
 lane runs the recorder itself on the wire-pod host and adjusts the table.
 The order, each a separate run of `hardware/record_barriered.py`:
 
