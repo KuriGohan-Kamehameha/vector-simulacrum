@@ -3,9 +3,9 @@
 Authored-by: CPCS (cpcs-5f62f24). Runs on the wire-pod host with its anki_vector install,
 fed on stdin; writes JSON lines to stdout and leaves nothing behind but a lock file it removes.
 
-NOT RUN YET. This copy is kept in skills/vector-simulacrum so the sequence the model needs is
-written down beside the model. Nothing in the skill imports or runs it against a robot;
-tests/test_recorder.py runs it against a stand-in SDK with a stand-in clock.
+First run on a robot 2026-11-18 (evidence/hw-rec-20261118). This copy is kept in
+skills/vector-simulacrum so the sequence the model needs is written down beside the model. Nothing
+in the skill imports it; tests/test_recorder.py runs it against a stand-in SDK with a stand-in clock.
 Edited by cpcs-66ffc23, logging only, from the original with sha256
 192269145c74c5eb3e5f523a232d845cac9ef769702426a1dc770afcefad8602:
 after a hazard it keeps recording for ABORT_WATCH_S without commanding anything, the edge
@@ -27,6 +27,19 @@ Choose phases with the environment variable PHASES (comma separated, default "re
   repeat     one 60 mm/s spin and one 80 mm/s step, as in run 1       about 30 mm; put it LAST in PHASES
   edge       ONE approach to an edge at EDGE_SPEED mm/s (default 30)  drives until the robot's own cliff
              for at most EDGE_SECONDS (default 3.0)                    reaction stops it
+  wheelstand head level, lift down, then LISTEN ONLY for WHEELSTAND_S   no travel; a person tips the robot
+             seconds (default 180): nothing is commanded while a       by hand onto its rear wheels and onto
+             person tips the robot (simulacrum/wheelstand.py)          one tread edge; a soft surface
+  wheelie    connect the light cube, then the robot's own              drives to the cube and tips onto its
+             pop_a_wheelie off it; records WHEELIE_WATCH_S (default    rear; it finds the cube with its camera,
+             8) after; must be LAST in PHASES                          so the room must be lit
+  endurance  sustained load: spins both ways at ENDURANCE_MMPS          turns on the spot; allow 100 mm all
+             (default 300, above the treads' top speed) for 3 s, 2 s   round; drains the battery
+             rest, repeated for ENDURANCE_S (default 600, at most
+             1800); stops at 3.6 V
+  dock       the robot's own drive_on_charger; must be LAST, not with  drives to its charger, which it finds
+             wheelie. PHASES=dock alone on the charger commands         with its camera
+             nothing (it is not driven off first)
 
 The edge phase. Before the run, with the robot standing square to the edge, measure with a ruler
 from the line where the front wheels touch the surface to the edge, and pass it as EDGE_START_MM.
@@ -45,6 +58,11 @@ img_ts is the robot's time stamp of its last camera image. It shows how evenly s
 arrive. It cannot split the delay of a command going in from the delay of state coming back:
 the two clocks share no event.
 
+Battery: a "b" row (volts, level, charging, on_platform) at every phase start, at the end, and before each
+endurance cycle, read with get_battery_state while the wheels are stopped. Never inside the hazard loop:
+it is a blocking call, and in run F (2026-11-18) it returned 4.0797 V unchanged 165 times in 2.5 min of
+full-power spins, so it carries no second-by-second sag.
+
 RULER_PAUSE_S (default 0): seconds to stand still after each forward leg of "straights", so the
 distance can be marked and measured before the robot drives back.
 
@@ -57,7 +75,9 @@ Safety:
   The script then only listens (ABORT_WATCH_S) and commands nothing more.
 - A blocking behaviour call (head, lift, drive_straight, turn_in_place, drive_off_charger) has
   no time limit of its own here. It is not started without control, but if control is lost
-  while it runs it may not return: end the script with SIGTERM, which stops the motors.
+  while it runs it may not return: end the script with SIGTERM, which stops the motors. SIGHUP
+  (an ssh connection dropping) and SIGINT stop them too; SIGKILL cannot be caught.
+- VECTOR_SERIAL picks the robot (8 hex digits; default the robot of the first recording).
 - It does not try to dock. The robot is left where the sequence ends.
 """
 import json
@@ -72,16 +92,30 @@ from anki_vector.connection import ControlPriorityLevel
 from anki_vector.events import Events
 from anki_vector.util import degrees, distance_mm, speed_mmps
 
-SERIAL = os.environ.get("VECTOR_SERIAL", "00000000")  # set VECTOR_SERIAL to your robot's serial number
+SERIAL = os.environ.get("VECTOR_SERIAL", "00000000")
+assert len(SERIAL) == 8 and all(c in "0123456789abcdef" for c in SERIAL.lower()), "VECTOR_SERIAL is 8 hex digits"
 LOCK = "/tmp/vector-%s-takeover.lock" % SERIAL
 POLL_S = 0.02
 MAX_WHEEL_MMPS = 220.0
 MAX_SEGMENT_S = 3.5
 MAX_WATCH_S = 30.0
-KNOWN_PHASES = ("rest", "headlift", "spins", "straights", "reversal", "arcs", "actions", "repeat", "edge")
+MAX_LISTEN_S = 300.0
+# SIGHUP too: run over ssh, a dropped connection hangs up the script, and wheels set with
+# set_wheel_motors keep turning after the process is gone unless it stops them first.
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+CUBE_WAIT_S = 12.0
+CUBE_POLL_S = 0.5
+KNOWN_PHASES = ("rest", "headlift", "spins", "straights", "reversal", "arcs", "actions", "repeat", "edge", "wheelstand",
+                "wheelie", "dock", "endurance")
+# The SDK's get_battery_state: "At 3.6V, the robot is approaching low charge" (anki_vector/robot.py:765).
+ENDURANCE_LOW_V = 3.6
+ENDURANCE_SPIN_S = 3.0
+ENDURANCE_REST_S = 2.0
+MAX_ENDURANCE_MMPS = 300.0
+MAX_ENDURANCE_S = 1800.0
 OUT_LOCK = threading.Lock()
 T0 = time.monotonic()
-STATE = {"robot": None, "abort": None}
+STATE = {"robot": None, "abort": None, "volts": None}
 
 
 def emit(kind, **fields):
@@ -98,6 +132,19 @@ def on_state(robot, event_type, m):
          wl=m.left_wheel_speed_mmps, wr=m.right_wheel_speed_mmps, head=m.head_angle_rad, lift=m.lift_height_mm,
          pose=[m.pose.x, m.pose.y, m.pose.z], yaw=m.pose_angle_rad, pitch=m.pose_pitch_rad, status=m.status,
          prox=m.prox_data.distance_mm, proxq=m.prox_data.signal_quality, img_ts=m.last_image_time_stamp)
+
+
+def battery_read(robot):
+    """One battery reading as a "b" row; the voltage is kept for the endurance phase's low-battery stop."""
+    try:
+        b = robot.get_battery_state()
+        volts = float(b.battery_volts)
+    except Exception as exc:  # a missed reading is recorded; the run goes on
+        emit("b", error=type(exc).__name__)
+        return
+    STATE["volts"] = volts
+    emit("b", volts=round(volts, 4), level=int(b.battery_level), charging=bool(b.is_charging),
+         on_platform=bool(b.is_on_charger_platform))
 
 
 def has_control(robot):
@@ -159,9 +206,9 @@ def hold(robot, seconds):
     return True
 
 
-def wheels_for(robot, left, right, seconds, label, settle_s=2.0, then=None):
+def wheels_for(robot, left, right, seconds, label, settle_s=2.0, then=None, limit=MAX_WHEEL_MMPS):
     """Two wheel speeds for a bounded time, optionally straight into a second pair, then stop and stand."""
-    assert abs(left) <= MAX_WHEEL_MMPS and abs(right) <= MAX_WHEEL_MMPS, "wheel speed above the robot's limit"
+    assert abs(left) <= limit and abs(right) <= limit <= MAX_ENDURANCE_MMPS, "wheel speed above the limit"
     if not clear_to_move(robot, label):
         return False
     emit("c", name="wheels", label=label, left=left, right=right, seconds=seconds)
@@ -273,6 +320,142 @@ def phase_edge(robot):
     wheels_for(robot, speed, speed, seconds, "edge_approach_%d" % speed, settle_s=4.0)
 
 
+def wheelstand_seconds():
+    """How long the wheelstand phase listens. Raises if out of range."""
+    seconds = float(os.environ.get("WHEELSTAND_S", "180") or 0.0)
+    assert 10.0 <= seconds <= MAX_LISTEN_S, "WHEELSTAND_S must be 10..300 s"
+    return seconds
+
+
+def phase_wheelstand(robot):
+    """Head level and lift down (the pose the table's centre of mass is for), then command nothing and listen.
+
+    The person tips the robot by hand; the state rows carry the accelerometer, head and lift.
+    Hazard flags (picked up, held, cliff) are expected here and are not acted on, because nothing moves.
+    Whether the firmware moves the head or lift itself while the robot is held is not known; the
+    analysis reads head and lift from every row and sets aside any trial off the pose.
+    """
+    seconds = wheelstand_seconds()
+    b = robot.behavior
+    if not behaviour(robot, "head", lambda: b.set_head_angle(degrees(0.0)), deg=0.0):
+        return
+    if not behaviour(robot, "lift", lambda: b.set_lift_height(0.0), norm=0.0):
+        return
+    emit("c", name="wheelstand_listen", seconds=seconds)
+    time.sleep(seconds)
+    emit("c", name="wheelstand_listen_done")
+
+
+def wheelie_watch_seconds():
+    seconds = float(os.environ.get("WHEELIE_WATCH_S", "8") or 0.0)
+    assert 0.0 <= seconds <= MAX_WATCH_S, "WHEELIE_WATCH_S out of range"
+    return seconds
+
+
+def _pose_fields(pose):
+    """x, y, z in mm and heading in degrees of an SDK pose, or None if it cannot be read."""
+    try:
+        p = pose.position
+        return [round(float(p.x), 1), round(float(p.y), 1), round(float(p.z), 1), round(float(pose.rotation.angle_z.degrees), 2)]
+    except Exception as exc:  # the pose is evidence only; its absence is recorded, not fatal
+        return "unreadable: %s" % type(exc).__name__
+
+
+def _connect_fields(reply):
+    """What the robot answered to ConnectCube: success, the cube's radio id, the response status."""
+    fields = {}
+    for name in ("success", "factory_id", "object_id"):
+        value = getattr(reply, name, None)
+        fields[name] = value if isinstance(value, (bool, int, float, str)) or value is None else str(value)
+    status = getattr(reply, "status", None)
+    fields["status_code"] = getattr(status, "code", None) if status is not None else None
+    if fields["status_code"] is not None and not isinstance(fields["status_code"], int):
+        fields["status_code"] = str(fields["status_code"])
+    return fields
+
+
+def _connected_cube(robot):
+    """Connect the light cube and wait for it, at most CUBE_WAIT_S. None if it never connects."""
+    try:
+        reply = robot.world.connect_cube()
+    except Exception as exc:
+        emit("c", name="cube_connect_failed", error=("%s: %s" % (type(exc).__name__, exc))[:160])
+        return None
+    emit("c", name="cube_connect", **_connect_fields(reply))
+    for _ in range(int(CUBE_WAIT_S / CUBE_POLL_S)):
+        cube = robot.world.connected_light_cube
+        if cube is not None:
+            return cube
+        time.sleep(CUBE_POLL_S)
+    emit("c", name="no_cube", waited_s=CUBE_WAIT_S)
+    return None
+
+
+def phase_wheelie(robot):
+    """The robot's own wheelie: it drives to its cube, presses its lift on it and tips onto its rear.
+
+    This script only starts the behaviour; the firmware drives. The cube's and the robot's poses
+    (the robot's own estimates) are recorded before, so a model can put a cube in the same place.
+    Picked-up and falling flags are expected during it, so it must be the last phase. Nothing is
+    commanded after it; the robot's own return to its treads is recorded for WHEELIE_WATCH_S.
+    """
+    watch = wheelie_watch_seconds()
+    cube = _connected_cube(robot)
+    if cube is None:
+        return
+    emit("c", name="wheelie_setup", cube_pose=_pose_fields(cube.pose), robot_pose=_pose_fields(robot.pose))
+    behaviour(robot, "pop_a_wheelie", lambda: robot.behavior.pop_a_wheelie(cube))
+    emit("c", name="wheelie_watch", seconds=watch)
+    time.sleep(watch)
+    try:
+        robot.world.disconnect_cube()
+    except Exception as exc:  # best effort; the cube disconnects on its own when the SDK does
+        emit("c", name="cube_disconnect_failed", error=type(exc).__name__)
+
+
+def phase_dock(robot):
+    """The robot's own return to its charger. Records whether it ends on the charger."""
+    if robot.status.is_on_charger:
+        emit("c", name="already_on_charger")
+        return
+    behaviour(robot, "drive_on_charger", robot.behavior.drive_on_charger)
+    emit("c", name="dock_result", on_charger=bool(robot.status.is_on_charger))
+
+
+def endurance_settings():
+    """ENDURANCE_S and ENDURANCE_MMPS, checked before connecting."""
+    seconds = float(os.environ.get("ENDURANCE_S", "600") or 0.0)
+    speed = float(os.environ.get("ENDURANCE_MMPS", "300") or 0.0)
+    assert 60.0 <= seconds <= MAX_ENDURANCE_S, "ENDURANCE_S must be 60..1800 s"
+    assert 100.0 <= speed <= MAX_ENDURANCE_MMPS, "ENDURANCE_MMPS must be 100..300 mm/s"
+    return seconds, speed
+
+
+def phase_endurance(robot):
+    """Sustained load: spins both ways, ENDURANCE_SPIN_S each with ENDURANCE_REST_S between, for ENDURANCE_S.
+
+    Commanded above the treads' top speed, so the speed they reach is the ceiling at that moment's
+    battery voltage, read once a second. Stops early at ENDURANCE_LOW_V.
+    """
+    seconds, speed = endurance_settings()
+    end = time.monotonic() + seconds
+    cycles = int(seconds / (2.0 * (ENDURANCE_SPIN_S + ENDURANCE_REST_S))) + 1
+    done = 0
+    for cycle in range(cycles):
+        if time.monotonic() >= end:
+            break
+        battery_read(robot)
+        if STATE["volts"] is not None and STATE["volts"] <= ENDURANCE_LOW_V:
+            emit("c", name="endurance_low_battery", volts=STATE["volts"])
+            break
+        for sign, way in ((1.0, "ccw"), (-1.0, "cw")):
+            if not wheels_for(robot, -sign * speed, sign * speed, ENDURANCE_SPIN_S, "endurance_%s_%d" % (way, cycle),
+                              settle_s=0.0, limit=MAX_ENDURANCE_MMPS) or not hold(robot, ENDURANCE_REST_S):
+                return
+        done += 1
+    emit("c", name="endurance_done", cycles=done, seconds=seconds, mmps=speed, volts=STATE["volts"])
+
+
 def watch_after_abort():
     """After a hazard: command nothing, keep recording, so the robot's own reaction is in the file."""
     seconds = float(os.environ.get("ABORT_WATCH_S", "6") or 0.0)
@@ -282,7 +465,9 @@ def watch_after_abort():
 
 
 PHASES = {"rest": phase_rest, "headlift": phase_headlift, "spins": phase_spins, "straights": phase_straights,
-          "reversal": phase_reversal, "arcs": phase_arcs, "actions": phase_actions, "repeat": phase_repeat, "edge": phase_edge}
+          "reversal": phase_reversal, "arcs": phase_arcs, "actions": phase_actions, "repeat": phase_repeat, "edge": phase_edge,
+          "wheelstand": phase_wheelstand, "wheelie": phase_wheelie, "dock": phase_dock,
+          "endurance": phase_endurance}
 
 
 def chosen_phases():
@@ -292,6 +477,15 @@ def chosen_phases():
     assert names, "no phases chosen"
     if "edge" in names:
         edge_settings()  # refuse before connecting, not half way through the run
+    if "wheelstand" in names:
+        wheelstand_seconds()
+    if "wheelie" in names:
+        assert names[-1] == "wheelie" and "repeat" not in names, "wheelie must be the last phase, and not with repeat"
+        wheelie_watch_seconds()
+    if "endurance" in names:
+        endurance_settings()
+    if "dock" in names:
+        assert names[-1] == "dock" and "wheelie" not in names, "dock must be the last phase, and not with wheelie"
     return names
 
 
@@ -302,16 +496,18 @@ def sequence(robot, names):
     if not has_control(robot):
         emit("c", name="no_control", why="not granted at DEFAULT priority; nothing was commanded")
         return
-    if st.is_on_charger:
+    if st.is_on_charger and names != ["dock"]:
         if not behaviour(robot, "drive_off_charger", robot.behavior.drive_off_charger):
             return
     for name in names:
         if STATE["abort"]:
             break
         emit("c", name="phase", phase=name)
+        battery_read(robot)
         PHASES[name](robot)
     if STATE["abort"]:
         watch_after_abort()
+    battery_read(robot)
     emit("c", name="end", abort=STATE["abort"], control=has_control(robot), on_charger=bool(robot.status.is_on_charger))
 
 
@@ -332,8 +528,8 @@ def main():
         return 3
     os.write(fd, ("cpcs-5f62f24 hardware recording pid %d\n" % os.getpid()).encode())
     os.close(fd)
-    signal.signal(signal.SIGTERM, on_signal)
-    signal.signal(signal.SIGINT, on_signal)
+    for sig in STOP_SIGNALS:
+        signal.signal(sig, on_signal)
     robot = anki_vector.Robot(SERIAL, behavior_control_level=ControlPriorityLevel.DEFAULT_PRIORITY, cache_animation_lists=False)
     try:
         robot.connect(timeout=20)

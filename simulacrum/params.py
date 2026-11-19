@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence
 PROVENANCE = ("measured", "fitted", "manual", "sdk", "assumed", "chosen")
 CHOSEN_KINDS = ("scene", "numeric")
 KINDS = ("robot", "scene", "numeric", "reference")
-SOURCE_KINDS = ("vendor_firmware", "vendor_webots_model", "household_code")
+SOURCE_KINDS = ("vendor_firmware", "vendor_webots_model", "vendor_sdk", "household_code")
 TABLE_PATH = Path(__file__).resolve().parent.parent / "parameters.json"
 MAX_ENTRIES = 512
 

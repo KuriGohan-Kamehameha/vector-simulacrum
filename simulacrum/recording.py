@@ -140,11 +140,20 @@ def gyro_frame(states: Sequence[Dict[str, Any]], at_least_dps: float = 20.0) -> 
     """
     rows = [r for r in states if r["wl"] * r["wr"] < 0.0 and abs(math.degrees(r["gyro"][2])) > at_least_dps]
     assert len(rows) > 30, "too few turning samples"
-    fit = statistics.linear_regression([math.tan(r["head"]) for r in rows],
-                                       [r["gyro"][0] / r["gyro"][2] for r in rows])
+    slope, intercept = line_fit([math.tan(r["head"]) for r in rows], [r["gyro"][0] / r["gyro"][2] for r in rows])
     heads = [math.degrees(r["head"]) for r in rows]
-    return {"n": len(rows), "slope": fit.slope, "offset_deg": math.degrees(math.atan(fit.intercept)),
+    return {"n": len(rows), "slope": slope, "offset_deg": math.degrees(math.atan(intercept)),
             "head_min_deg": min(heads), "head_max_deg": max(heads)}
+
+
+def line_fit(xs: Sequence[float], ys: Sequence[float]) -> Tuple[float, float]:
+    """Least-squares slope and intercept. statistics.linear_regression does this from Python 3.10; this runs on 3.9."""
+    assert len(xs) == len(ys) >= 2, "need two or more points"
+    mx, my = statistics.fmean(xs), statistics.fmean(ys)
+    sxx = math.fsum((x - mx) ** 2 for x in xs)
+    assert sxx > 0.0, "every x is the same: no line through them"
+    slope = math.fsum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx
+    return slope, my - slope * mx
 
 
 def spin_ratios(states: Sequence[Dict[str, Any]], commands: Sequence[Dict[str, Any]],

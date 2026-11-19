@@ -179,13 +179,20 @@ class Drive(unittest.TestCase):
         self.assertEqual(state.left_wheel_speed_mmps, int(state.left_wheel_speed_mmps), "reported in whole mm/s")
         self.assertTrue(state.wheels_moving)
 
-    def test_wheel_speed_is_limited_to_the_robot_maximum(self) -> None:
-        sim = VectorSim(values=params.values(params.load(), {"table_length_mm": 1500.0}), start_xy_mm=(-650.0, 0.0))
-        sim.set_wheel_motors(500.0, 500.0)
-        sim.advance(4.0)
-        x0 = sim.pose_mm()[0]
-        sim.advance(1.0)
-        self.assertAlmostEqual(sim.pose_mm()[0] - x0, sim.v["wheel_speed_max_mmps"], delta=5.0)
+    def test_direct_drive_is_limited_by_the_motor_not_the_firmware_constant(self) -> None:
+        """set_wheel_motors is not clamped to 220 (the firmware clamps in path following only); the motor's
+        ceiling at full duty sets the speed, and a lower battery lowers it (REC2 run F reached 243-247)."""
+        speeds = {}
+        for volts in (4.03, 3.7):
+            v = params.values(params.load(), {"table_length_mm": 1500.0, "battery_rest_voltage_v": volts})
+            sim = VectorSim(values=v, start_xy_mm=(-650.0, 0.0))
+            sim.set_wheel_motors(500.0, 500.0)
+            sim.advance(2.0)
+            x0 = sim.pose_mm()[0]
+            sim.advance(1.0)
+            speeds[volts] = sim.pose_mm()[0] - x0
+        self.assertGreater(speeds[4.03], sim.v["wheel_speed_max_mmps"] + 15.0)
+        self.assertLess(speeds[3.7], speeds[4.03] - 10.0)
 
     def test_stop_all_motors_stops_the_robot(self) -> None:
         sim = VectorSim()

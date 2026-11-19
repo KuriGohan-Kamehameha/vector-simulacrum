@@ -9,9 +9,10 @@ change that makes the model fit the robot worse fails.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import _common
-from simulacrum import params
+from simulacrum import params, recording
 
 if _common.HAVE_MUJOCO:
     from simulacrum import replay
@@ -21,6 +22,11 @@ BEFORE_THE_FIT = {
     "tread_friction_power_fraction": 0.057, "command_delay_ms": 30.0, "servo_command_delay_ms": 30.0,
     "head_speed_max_radps": 10.0, "lift_speed_max_radps": 10.0,
 }
+
+CONSTANT_RATE = {"head_accel_default_radps2": 1.0e6, "lift_accel_default_radps2": 1.0e6, "head_speed_max_radps": 1.75,
+                 "lift_speed_max_radps": 2.8, "servo_command_delay_ms": 225.0}
+SECOND = Path(__file__).resolve().parent.parent / "evidence" / "hw-rec-20261118" / "run-a-rest-headlift.jsonl"
+SPINS = SECOND.parent / "run-e-spins.jsonl"
 
 
 @unittest.skipUnless(_common.HAVE_MUJOCO, _common.SKIP_REASON)
@@ -60,10 +66,32 @@ class Replay(unittest.TestCase):
     def test_head_and_lift_match_the_robot_on_fit_and_held_out_moves(self) -> None:
         fit = replay.compare(self.v, replay.FIT_SERVOS)
         hold = replay.compare(self.v, replay.HOLD_SERVOS)
-        self.assertLess(replay.servo_score(fit, self.v), 0.03)
-        self.assertLess(replay.servo_score(hold, self.v), 0.07)
+        self.assertLess(replay.servo_score(fit, self.v), 0.035)
+        held = replay.servo_score(hold, self.v)
+        self.assertLess(held, 0.04)
+        # With the ramp, the 30 ms delay from before any fit scores 0.080 here; the fitted delay 0.035.
         old = dict(self.v, **BEFORE_THE_FIT)
-        self.assertGreater(replay.servo_score(replay.compare(old, replay.HOLD_SERVOS), old), 0.25)
+        self.assertGreater(replay.servo_score(replay.compare(old, replay.HOLD_SERVOS), old), held + 0.03)
+
+    def test_head_and_lift_match_the_second_recording_which_no_fit_saw(self) -> None:
+        """REC2 run A, 2026-11-18: 8 head and 7 lift moves, the full-range ones longer than any in REC."""
+        _, commands = recording.load(SECOND)
+        labels = [k for k, seg in recording.segments(commands, self.v).items() if seg.kind in ("head", "lift")]
+        self.assertEqual(len(labels), 15)
+        now = replay.servo_score(replay.compare(self.v, labels, SECOND), self.v)
+        self.assertLess(now, 0.04)
+        # The constant-rate head and lift this replaced (no ramp, caps 1.75 and 2.8 rad/s, 225 ms) scores 0.060.
+        flat = dict(self.v, **CONSTANT_RATE)
+        self.assertGreater(replay.servo_score(replay.compare(flat, labels, SECOND), flat), now + 0.02)
+
+    def test_the_fast_spins_of_the_second_recording_replay(self) -> None:
+        """REC2 run E: four spins at 150 and 220 mm/s; the wheel speeds match, the turn rate is short (README)."""
+        states, commands = recording.load(SPINS)
+        segs = {k: seg for k, seg in recording.segments(commands, self.v).items() if seg.kind == "wheels"}
+        self.assertEqual(sorted(segs), ["spin_ccw_150", "spin_ccw_220", "spin_cw_150", "spin_cw_220"])
+        for label, seg in segs.items():
+            result = replay.replay(seg, self.v, states)
+            self.assertLess(result["wheel_rmse_mmps"] / result["command_mmps"], 0.12, label)
 
     def test_replay_gives_the_same_result_twice(self) -> None:
         self.assertEqual(replay.compare(self.v, ("spin_cw_60",)), replay.compare(self.v, ("spin_cw_60",)))

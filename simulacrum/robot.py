@@ -86,6 +86,18 @@ def _toward(current: float, target: float, max_step: float) -> float:
     return current + _clamp(target - current, -max_step, max_step)
 
 
+def _profile_step(current: float, target: float, rate: float, cap: float, accel: float, dt: float) -> Tuple[float, float]:
+    """One tick of a speed-and-acceleration profile toward a target: speed up at accel, never above cap,
+    and slow down so as to stop on the target. Returns the new position and speed."""
+    assert cap > 0.0 and accel > 0.0 and dt > 0.0 and rate >= 0.0, "profile needs positive speed, acceleration and step"
+    remaining = abs(target - current)
+    if remaining == 0.0:
+        return current, 0.0
+    rate = min(cap, rate + accel * dt, math.sqrt(2.0 * accel * remaining))
+    nxt = _toward(current, target, rate * dt)
+    return nxt, (0.0 if nxt == target else rate)
+
+
 class VectorSim:
     """A simulated Vector on a table. One instance is one robot and one scene."""
 
@@ -148,11 +160,18 @@ class VectorSim:
         self._dir_sign = [1.0, 1.0]
         self._encoders = [TreadEncoder(v), TreadEncoder(v)]
         self._controllers = [TreadController(v), TreadController(v)]
+        assert v["motor_reference_voltage_v"] > 0.0 and v["battery_rest_voltage_v"] > 0.0, "voltages must be positive"
+        assert v["battery_sag_v_per_power"] >= 0.0, "sag must not be negative"
+        self.battery_volts = v["battery_rest_voltage_v"]
+        assert v["tread_heat_tau_s"] > 0.0 and len(v["tread_heat_loss_rate_per_s"]) == 2, "heat needs a time and two rates"
+        self.tread_heat = [0.0, 0.0]
         self._measured = (0.0, 0.0)
         self._imu_sample: Optional[Tuple[Tuple[float, float, float], Tuple[float, float, float]]] = None
         self._head_target = self._head_cmd = 0.0
         self._lift_target = self._lift_cmd = self.d["lift_angle_min"]
         self._head_speed, self._lift_speed = v["head_speed_default_radps"], v["lift_speed_default_radps"]
+        self._head_accel, self._lift_accel = v["head_accel_default_radps2"], v["lift_accel_default_radps2"]
+        self._servo_rate = [0.0, 0.0]
         self._wheel_delay = int(round(v["command_delay_ms"] / v["control_period_ms"]))
         self._servo_delay = int(round(v["servo_command_delay_ms"] / v["control_period_ms"]))
         assert self._wheel_delay >= 0 and self._servo_delay >= 0, "command delays must not be negative"
@@ -186,6 +205,7 @@ class VectorSim:
         qpos[self._q["head"]], qpos[self._q["lift"]], qpos[self._q["wrist"]] = head, lift, -lift
         self._head_target = self._head_cmd = head
         self._lift_target = self._lift_cmd = lift
+        self._servo_rate = [0.0, 0.0]
         for slot in self._delay:
             slot[2], slot[3] = head, lift
         self.data.ctrl[self._act["head"]], self.data.ctrl[self._act["lift"]] = head, lift
@@ -348,10 +368,12 @@ class VectorSim:
             step = accel * self.dt if accel > 0.0 else float("inf")
             self._wheel_cmd[i] = self._wheel_target[i] if accel <= 0.0 else _toward(
                 self._wheel_cmd[i], self._wheel_target[i], step)
-        head_rate = min(self._head_speed, self.v["head_speed_max_radps"])
-        lift_rate = min(self._lift_speed, self.v["lift_speed_max_radps"])
-        self._head_cmd = _toward(self._head_cmd, self._head_target, head_rate * self.dt)
-        self._lift_cmd = _toward(self._lift_cmd, self._lift_target, lift_rate * self.dt)
+        head_cap = min(self._head_speed, self.v["head_speed_max_radps"])
+        lift_cap = min(self._lift_speed, self.v["lift_speed_max_radps"])
+        self._head_cmd, self._servo_rate[0] = _profile_step(self._head_cmd, self._head_target, self._servo_rate[0],
+                                                            head_cap, self._head_accel, self.dt)
+        self._lift_cmd, self._servo_rate[1] = _profile_step(self._lift_cmd, self._lift_target, self._servo_rate[1],
+                                                            lift_cap, self._lift_accel, self.dt)
 
     def _delayed_command(self) -> List[float]:
         """Queue this tick's SDK command; return the wheel speeds issued command_delay_ms ago
@@ -379,6 +401,7 @@ class VectorSim:
         self._wheel_target, self._wheel_cmd = [0.0, 0.0], [0.0, 0.0]
         self._head_target = self._head_cmd = self.head_angle_rad()
         self._lift_target = self._lift_cmd = float(self.data.qpos[self._q["lift"]])
+        self._servo_rate = [0.0, 0.0]
         for slot in self._delay:
             slot[0], slot[1], slot[2], slot[3] = 0.0, 0.0, self._head_cmd, self._lift_cmd
         assert self._react_ticks >= 0, "cliff reaction pause must not be negative"
@@ -432,12 +455,31 @@ class VectorSim:
         self._drive_treads(left, right)
 
     def _drive_treads(self, left_mmps: float, right_mmps: float) -> None:
-        """The firmware's speed loop: commanded and measured speed in, motor power out."""
+        """The firmware's speed loop: commanded and measured speed in, motor power out.
+
+        The power is a PWM duty (hal_motors.cpp MotorSetPower), so the motor sees duty x battery voltage.
+        The actuator's gain is the stall torque at motor_reference_voltage_v and its damping (back EMF)
+        does not depend on the voltage, so the duty is scaled by the battery's voltage over that reference.
+        The battery's voltage sags with the treads' summed duty of the last tick.
+        Each tread also loses drive as it heats: a first-order heat state follows its |duty| with time
+        constant tread_heat_tau_s, and the drive is scaled by 1 - rate x tau x heat (motor_heat_fit.py).
+        """
+        v = self.v
         measured = self._reported_wheel_speeds()
+        load = abs(self._controllers[0].power) + abs(self._controllers[1].power)
+        self.battery_volts = v["battery_rest_voltage_v"] - v["battery_sag_v_per_power"] * load
+        assert self.battery_volts > 0.0, "battery voltage sagged to nothing"
+        scale = self.battery_volts / v["motor_reference_voltage_v"]
         ctrl = self.data.ctrl
-        ctrl[self._act["left_wheel"]] = self._controllers[0].update(left_mmps, measured[0])
-        ctrl[self._act["right_wheel"]] = self._controllers[1].update(right_mmps, measured[1])
-        assert abs(float(ctrl[self._act["left_wheel"]])) <= self.v["motor_power_max"], "power outside its limit"
+        duties = (self._controllers[0].update(left_mmps, measured[0]), self._controllers[1].update(right_mmps, measured[1]))
+        assert max(abs(duties[0]), abs(duties[1])) <= v["motor_power_max"], "power outside its limit"
+        tau, rates = v["tread_heat_tau_s"], v["tread_heat_loss_rate_per_s"]
+        keep = [1.0 - rates[i] * tau * self.tread_heat[i] for i in range(2)]
+        assert min(keep) > 0.0, "a tread lost all its drive to heat"
+        ctrl[self._act["left_wheel"]] = duties[0] * scale * keep[0]
+        ctrl[self._act["right_wheel"]] = duties[1] * scale * keep[1]
+        for i in range(2):
+            self.tread_heat[i] += (abs(duties[i]) - self.tread_heat[i]) * min(1.0, self.dt / tau)
 
     def _tick_once(self) -> None:
         for encoder, travel in zip(self._encoders, self._tread_travel_mm()):
@@ -480,12 +522,15 @@ class VectorSim:
 
     def set_wheel_motors(self, left_mmps: float, right_mmps: float, left_accel_mmps2: float = 0.0,
                          right_accel_mmps2: float = 0.0) -> bool:
-        """Set tread speeds. An acceleration of 0 means the speed is commanded at once."""
+        """Set tread speeds. An acceleration of 0 means the speed is commanded at once.
+
+        Not clamped to wheel_speed_max_mmps: the firmware applies that only in path following
+        (steeringController.cpp:419 CheckWheelSpeedLimits), not in direct drive (ExecuteDirectDrive),
+        and the robot reached 243-247 mm/s when sent 300 (REC2 run F). The motor sets the ceiling."""
         assert all(math.isfinite(x) for x in (left_mmps, right_mmps, left_accel_mmps2, right_accel_mmps2))
         if not self.has_control:
             return False
-        top = self.v["wheel_speed_max_mmps"]
-        self._wheel_target = [_clamp(left_mmps, -top, top), _clamp(right_mmps, -top, top)]
+        self._wheel_target = [left_mmps, right_mmps]
         self._wheel_accel = [abs(left_accel_mmps2), abs(right_accel_mmps2)]
         return True
 
@@ -495,6 +540,7 @@ class VectorSim:
         self._wheel_target, self._wheel_accel = [0.0, 0.0], [0.0, 0.0]
         self._head_target = self._head_cmd = self.head_angle_rad()
         self._lift_target = self._lift_cmd = float(self.data.qpos[self._q["lift"]])
+        self._servo_rate = [0.0, 0.0]
         return True
 
     def _interrupt(self) -> Optional[str]:
@@ -524,7 +570,7 @@ class VectorSim:
         if not self.has_control:
             return False
         v = self.v
-        self._head_speed = v["head_speed_default_radps"]
+        self._head_speed, self._servo_rate[0] = v["head_speed_default_radps"], 0.0
         self._head_target = math.radians(_clamp(angle_deg, v["head_angle_min_deg"], v["head_angle_max_deg"]))
         return True
 
@@ -533,7 +579,7 @@ class VectorSim:
         assert math.isfinite(height_mm), "bad lift height"
         if not self.has_control:
             return False
-        self._lift_speed = self.v["lift_speed_default_radps"]
+        self._lift_speed, self._servo_rate[1] = self.v["lift_speed_default_radps"], 0.0
         self._lift_target = mjcf.lift_angle_of_height(self.v, height_mm)
         return True
 
@@ -638,6 +684,7 @@ class VectorSim:
             return ActionResult(RESULT_NO_CONTROL, 0.0, 0.0, 0)
         v = self.v
         self._head_speed = abs(speed_radps) if speed_radps else v["head_speed_default_radps"]
+        self._servo_rate[0] = 0.0
         target = math.radians(_clamp(angle_deg, v["head_angle_min_deg"], v["head_angle_max_deg"]))
         span = abs(target - self.head_angle_rad())
         self._head_target = target
@@ -651,6 +698,7 @@ class VectorSim:
             return ActionResult(RESULT_NO_CONTROL, 0.0, 0.0, 0)
         v = self.v
         self._lift_speed = abs(speed_radps) if speed_radps else v["lift_speed_default_radps"]
+        self._servo_rate[1] = 0.0
         target = mjcf.lift_angle_of_height(v, height_mm)
         read = lambda: float(self.data.qpos[self._q["lift"]])
         span = abs(target - read())

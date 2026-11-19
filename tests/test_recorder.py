@@ -27,9 +27,10 @@ import _common  # noqa: F401  (puts the skill on the path)
 from simulacrum import recording
 
 SCRIPT = Path(__file__).resolve().parent.parent / "hardware" / "record_barriered.py"
-ENV_KEYS = ("PHASES", "RULER_PAUSE_S", "EDGE_SPEED", "EDGE_SECONDS", "EDGE_START_MM", "ABORT_WATCH_S", "NOTE")
+ENV_KEYS = ("PHASES", "RULER_PAUSE_S", "EDGE_SPEED", "EDGE_SECONDS", "EDGE_START_MM", "ABORT_WATCH_S", "NOTE", "WHEELSTAND_S",
+            "WHEELIE_WATCH_S", "ENDURANCE_S", "ENDURANCE_MMPS")
 TIME_TOL_S = 0.05
-MOVING = ("wheels", "head", "lift", "drive_straight", "turn_in_place", "drive_off_charger")
+MOVING = ("wheels", "head", "lift", "drive_straight", "turn_in_place", "drive_off_charger", "drive_on_charger")
 
 
 class FakeClock:
@@ -44,6 +45,35 @@ class FakeClock:
     def sleep(self, seconds: float) -> None:
         assert seconds >= 0.0, "negative sleep"
         self.now += seconds
+
+
+def fake_pose(x: float, y: float, heading_deg: float) -> Any:
+    return types.SimpleNamespace(position=types.SimpleNamespace(x=x, y=y, z=0.0),
+                                 rotation=types.SimpleNamespace(angle_z=types.SimpleNamespace(degrees=heading_deg)))
+
+
+class FakeWorld:
+    """The light cube: connects a set time after it is asked to, or never."""
+
+    def __init__(self, robot: "FakeRobot") -> None:
+        self.robot, self.asked_at = robot, None
+        self.cube = types.SimpleNamespace(pose=fake_pose(180.0, 20.0, 90.0))
+
+    def connect_cube(self) -> Any:
+        self.robot._call("connect_cube")
+        self.asked_at = self.robot.clock.now
+        found = self.robot.cube_after is not None
+        return types.SimpleNamespace(success=found, factory_id="ab:cd:ef:01:23:45" if found else "", object_id=1 if found else 0,
+                                     status=types.SimpleNamespace(code=1))
+
+    def disconnect_cube(self) -> None:
+        self.robot._call("disconnect_cube")
+
+    @property
+    def connected_light_cube(self) -> Any:
+        after = self.robot.cube_after
+        ready = after is not None and self.asked_at is not None and self.robot.clock.now >= self.asked_at + after
+        return self.cube if ready else None
 
 
 class FakeRobot:
@@ -63,9 +93,21 @@ class FakeRobot:
             set_head_angle=lambda a: self._block("head", a), set_lift_height=lambda h: self._block("lift", h),
             drive_straight=lambda d, s, should_play_anim=True: self._block("drive_straight", d, s, should_play_anim),
             turn_in_place=lambda a, speed=None: self._block("turn_in_place", a, speed),
-            drive_off_charger=lambda: self._block("drive_off_charger"))
+            drive_off_charger=lambda: self._block("drive_off_charger"),
+            drive_on_charger=lambda: self._block("drive_on_charger"),
+            pop_a_wheelie=lambda cube: self._block("pop_a_wheelie", cube is self.world.cube))
+        self.cube_after: Optional[float] = 1.0
+        self.world = FakeWorld(self)
+        self.pose = fake_pose(10.0, -5.0, 0.0)
+        self.volts0, self.volts_per_s = 4.05, 0.0005
         self.events = types.SimpleNamespace(subscribe=lambda *a: None, unsubscribe=lambda *a: None)
         self.status = self
+
+    def get_battery_state(self) -> Any:
+        """A battery that drains at a set rate with the clock."""
+        volts = self.volts0 - self.volts_per_s * self.clock.now
+        return types.SimpleNamespace(battery_volts=volts, battery_level=2 if volts > 3.6 else 1, is_charging=False,
+                                     is_on_charger_platform=self.is_on_charger)
 
     def connect(self, timeout: float = 0.0) -> None:
         self._call("connect")
@@ -102,7 +144,8 @@ class FakeRobot:
 
     @property
     def is_on_charger(self) -> bool:
-        return self.on_charger and not any(call[1] == "drive_off_charger" for call in self.calls)
+        moves = [call[1] for call in self.calls if call[1] in ("drive_off_charger", "drive_on_charger")]
+        return moves[-1] == "drive_on_charger" if moves else self.on_charger
 
 
 def _fake_sdk(robot: FakeRobot) -> Dict[str, Any]:
@@ -131,7 +174,7 @@ def _load_script(robot: FakeRobot, lock: str) -> Any:
 def dry_run(env: Dict[str, str], robot: Optional[FakeRobot] = None) -> Dict[str, Any]:
     """Run the script's own main() against the stand-ins. Returns its rows, the robot's calls and the exit code."""
     robot = robot if robot is not None else FakeRobot(FakeClock())
-    handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+    handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)}
     out = io.StringIO()
     with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, env):
         for key in ENV_KEYS:
@@ -304,6 +347,148 @@ class Edge(unittest.TestCase):
         self.assertGreaterEqual(named(run["rows"], "end")[0]["t"] - stops[0]["t"], 6.0)
         after = [call[1] for call in run["calls"] if call[0] > stops[0]["t"] + TIME_TOL_S]
         self.assertEqual(after, ["stop", "disconnect"])
+
+
+class Wheelstand(unittest.TestCase):
+    def test_head_level_lift_down_then_nothing_commanded_while_listening(self) -> None:
+        run = dry_run({"PHASES": "wheelstand", "WHEELSTAND_S": "40"})
+        listen, done = named(run["rows"], "wheelstand_listen"), named(run["rows"], "wheelstand_listen_done")
+        self.assertEqual((len(listen), len(done), listen[0]["seconds"]), (1, 1, 40.0))
+        self.assertAlmostEqual(done[0]["t"] - listen[0]["t"], 40.0, delta=TIME_TOL_S)
+        moves = [call for call in run["calls"] if call[1] in MOVING]
+        self.assertEqual([(call[1], call[2]) for call in moves], [("head", ("deg", 0.0)), ("lift", 0.0)])
+        during = [call[1] for call in run["calls"] if listen[0]["t"] - TIME_TOL_S < call[0] < done[0]["t"]]
+        self.assertEqual(during, [])
+        self.assertEqual(run["code"], 0)
+
+    def test_a_listen_time_out_of_range_is_refused_before_connecting(self) -> None:
+        for seconds in ("5", "301"):
+            robot = FakeRobot(FakeClock())
+            with self.assertRaises(AssertionError, msg=seconds):
+                dry_run({"PHASES": "wheelstand", "WHEELSTAND_S": seconds}, robot)
+            self.assertEqual(robot.calls, [], seconds)
+
+
+class Signals(unittest.TestCase):
+    def test_a_hang_up_terminate_or_interrupt_stops_the_motors(self) -> None:
+        installed: List[Any] = []
+        real = signal.signal
+        with mock.patch("signal.signal", side_effect=lambda sig, handler: (installed.append(sig), real(sig, handler))[1]):
+            run = dry_run({"PHASES": "rest"})
+        self.assertEqual(sorted(installed[:3]), sorted([signal.SIGTERM, signal.SIGINT, signal.SIGHUP]))
+        module, robot = run["module"], FakeRobot(FakeClock())
+        module.STATE["robot"] = robot
+        with self.assertRaises(SystemExit):
+            module.on_signal(signal.SIGHUP, None)
+        self.assertEqual([call[1] for call in robot.calls], ["stop"])
+        self.assertEqual(module.STATE["abort"], "signal_%d" % signal.SIGHUP)
+
+    def test_the_serial_comes_from_the_environment_and_is_checked(self) -> None:
+        with mock.patch.dict(os.environ, {"VECTOR_SERIAL": "0a1b2c3d"}):
+            module = _load_script(FakeRobot(FakeClock()), "/tmp/unused-lock")
+        self.assertEqual(module.SERIAL, "0a1b2c3d")
+        with mock.patch.dict(os.environ, {"VECTOR_SERIAL": "not-hex!"}), self.assertRaises(AssertionError):
+            _load_script(FakeRobot(FakeClock()), "/tmp/unused-lock")
+
+
+class Wheelie(unittest.TestCase):
+    def test_cube_then_the_robots_own_wheelie_then_only_recording(self) -> None:
+        run = dry_run({"PHASES": "rest,wheelie"})
+        names = [call[1] for call in run["calls"]]
+        self.assertEqual([n for n in names if n not in ("stop",)],
+                         ["connect", "connect_cube", "pop_a_wheelie", "disconnect_cube", "disconnect"])
+        self.assertTrue([c for c in run["calls"] if c[1] == "pop_a_wheelie"][0][2], "the connected cube is passed")
+        reply = named(run["rows"], "cube_connect")[0]
+        self.assertEqual((reply["success"], reply["factory_id"], reply["object_id"], reply["status_code"]),
+                         (True, "ab:cd:ef:01:23:45", 1, 1))
+        setup = named(run["rows"], "wheelie_setup")[0]
+        self.assertEqual((setup["cube_pose"], setup["robot_pose"]), ([180.0, 20.0, 0.0, 90.0], [10.0, -5.0, 0.0, 0.0]))
+        watch = named(run["rows"], "wheelie_watch")[0]
+        self.assertEqual(watch["seconds"], 8.0)
+        after = [call[1] for call in run["calls"] if call[0] > watch["t"] + TIME_TOL_S]
+        self.assertEqual(after, ["disconnect_cube", "stop", "disconnect"])
+        self.assertGreaterEqual(named(run["rows"], "end")[0]["t"] - watch["t"], 8.0)
+        self.assertEqual(run["code"], 0)
+
+    def test_no_cube_means_nothing_is_commanded(self) -> None:
+        robot = FakeRobot(FakeClock())
+        robot.cube_after = None
+        run = dry_run({"PHASES": "wheelie"}, robot)
+        self.assertEqual(named(run["rows"], "no_cube")[0]["waited_s"], 12.0)
+        self.assertEqual([row["success"] for row in named(run["rows"], "cube_connect")], [False], "the robot's answer is recorded")
+        self.assertNotIn("pop_a_wheelie", [call[1] for call in run["calls"]])
+        self.assertEqual([call[1] for call in run["calls"] if call[1] in MOVING], [])
+        self.assertEqual(run["code"], 0)
+
+    def test_wheelie_not_last_is_refused_before_connecting(self) -> None:
+        for phases in ("wheelie,rest", "repeat,wheelie"):
+            robot = FakeRobot(FakeClock())
+            with self.assertRaises(AssertionError, msg=phases):
+                dry_run({"PHASES": phases}, robot)
+            self.assertEqual(robot.calls, [], phases)
+
+
+class Dock(unittest.TestCase):
+    def test_off_the_charger_it_drives_home_and_records_where_it_ended(self) -> None:
+        run = dry_run({"PHASES": "rest,dock"})
+        self.assertEqual([c[1] for c in run["calls"] if c[1] in MOVING], ["drive_on_charger"])
+        self.assertEqual(named(run["rows"], "dock_result")[0]["on_charger"], True)
+        self.assertEqual(named(run["rows"], "end")[0]["on_charger"], True)
+        self.assertEqual(run["code"], 0)
+
+    def test_dock_alone_on_the_charger_commands_nothing(self) -> None:
+        robot = FakeRobot(FakeClock(), on_charger=True)
+        run = dry_run({"PHASES": "dock"}, robot)
+        self.assertEqual([c[1] for c in run["calls"] if c[1] in MOVING], [])
+        self.assertEqual(len(named(run["rows"], "already_on_charger")), 1)
+
+    def test_dock_not_last_is_refused_before_connecting(self) -> None:
+        for phases in ("dock,rest", "dock,wheelie"):
+            robot = FakeRobot(FakeClock())
+            with self.assertRaises(AssertionError, msg=phases):
+                dry_run({"PHASES": phases}, robot)
+            self.assertEqual(robot.calls, [], phases)
+
+
+class Endurance(unittest.TestCase):
+    def test_spins_above_the_top_speed_both_ways_with_the_battery_read_each_cycle(self) -> None:
+        run = dry_run({"PHASES": "endurance", "ENDURANCE_S": "60"})
+        spins = [(row["left"], row["right"], row["seconds"]) for row in named(run["rows"], "wheels")]
+        self.assertEqual(spins[:2], [(-300.0, 300.0, 3.0), (300.0, -300.0, 3.0)])
+        self.assertEqual(len(spins), 12, "60 s of 3 s spins with 2 s rests, both ways: 6 cycles")
+        battery = [row for row in run["rows"] if row["k"] == "b"]
+        self.assertEqual(len(battery), 6 + 2, "one per cycle, one at the phase start, one at the end")
+        self.assertLess(battery[-1]["volts"], battery[0]["volts"])
+        wheel_times = [call[0] for call in run["calls"] if call[1] == "wheels"]
+        for row in battery:
+            self.assertFalse(any(t < row["t"] < t + 3.0 for t in wheel_times), "no battery read while spinning")
+        self.assertEqual(named(run["rows"], "endurance_done")[0]["cycles"], 6)
+        self.assertEqual(run["code"], 0)
+
+    def test_it_stops_at_the_sdk_low_battery_voltage(self) -> None:
+        robot = FakeRobot(FakeClock())
+        robot.volts0, robot.volts_per_s = 3.62, 0.001
+        run = dry_run({"PHASES": "endurance", "ENDURANCE_S": "600"}, robot)
+        low = named(run["rows"], "endurance_low_battery")
+        self.assertEqual(len(low), 1)
+        self.assertLessEqual(low[0]["volts"], 3.6)
+        self.assertLess(len(named(run["rows"], "wheels")), 12)
+
+    def test_settings_out_of_range_are_refused_before_connecting(self) -> None:
+        for env in ({"ENDURANCE_MMPS": "400"}, {"ENDURANCE_S": "5000"}, {"ENDURANCE_S": "10"}):
+            robot = FakeRobot(FakeClock())
+            with self.assertRaises(AssertionError, msg=str(env)):
+                dry_run(dict(env, PHASES="endurance"), robot)
+            self.assertEqual(robot.calls, [], str(env))
+
+    def test_every_run_reads_the_battery_at_each_phase_and_at_the_end(self) -> None:
+        run = dry_run({"PHASES": "rest,spins"})
+        kinds = [(row["k"], row.get("name")) for row in run["rows"] if row["k"] in ("b", "c")]
+        end = kinds.index(("c", "end"))
+        self.assertEqual(kinds[end - 1][0], "b", "a reading just before the end row")
+        for index, item in enumerate(kinds):
+            if item == ("c", "phase"):
+                self.assertEqual(kinds[index + 1][0], "b", "a reading at the start of each phase")
 
 
 class Rows(unittest.TestCase):

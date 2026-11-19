@@ -55,7 +55,8 @@ class GeneratedModel(unittest.TestCase):
             "wheel_decel_default_mmps2", "point_turn_accel_default_radps2", "heading_hold_gain_mmps_per_rad",
             "drive_done_mm", "wheel_speed_max_mmps", "servo_command_delay_ms", "head_speed_max_radps",
             "lift_speed_max_radps", "cliff_reaction_pause_ms", "gyro_noise_rms_dps", "gyro_bias_dps", "accel_noise_rms_mg", "accel_bias_mg",
-            "tof_range_std_fraction"}
+            "tof_range_std_fraction", "battery_sag_v_per_power", "motor_reference_voltage_v",
+            "tread_heat_tau_s", "tread_heat_loss_rate_per_s"}
         base = mjcf.build_mjcf(self.v)
         unchanged = []
         for name, entry in self.doc["parameters"].items():

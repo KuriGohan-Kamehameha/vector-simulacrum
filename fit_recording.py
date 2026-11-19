@@ -1,6 +1,9 @@
 """Fit model parameters to the recording of the real robot. Authored-by: CPCS.
 
     cauldron python fit_recording.py
+    cauldron python fit_recording.py --servos     (the head and lift only; the treads are left as they are)
+    cauldron python fit_recording.py --servo-delay   (the head and lift delay only)
+    cauldron python fit_recording.py --wheels-held-noload   (the treads, the table's no-load speed held)
 
 Searches the tread drive and timing parameters so that the replayed model
 matches the recording on the fit segments only (the 30 and 100 mm/s spins
@@ -38,9 +41,14 @@ WHEEL_SEARCH = (
 )
 SERVO_SEARCH = (
     ("servo_command_delay_ms", "add", (-40.0, -20.0, -10.0, -5.0, 5.0, 10.0, 20.0, 40.0, 80.0), 0.0, 400.0),
-    ("head_speed_max_radps", "mul", (0.5, 0.7, 0.85, 0.93, 1.08, 1.2, 1.4), 1.0, 10.0),
-    ("lift_speed_max_radps", "mul", (0.5, 0.7, 0.85, 0.93, 1.08, 1.2, 1.4), 1.0, 10.0),
+    ("head_speed_max_radps", "mul", (0.5, 0.7, 0.85, 0.93, 1.08, 1.2, 1.4, 2.0, 3.0), 1.0, 10.0),
+    ("lift_speed_max_radps", "mul", (0.5, 0.7, 0.85, 0.93, 1.08, 1.2, 1.4, 2.0, 3.0), 1.0, 10.0),
 )
+
+# The treads with the no-load speed held where the saturated spins of REC2 run F put it.
+WHEELS_HELD_NOLOAD = tuple(spec for spec in WHEEL_SEARCH if spec[0] != "tread_noload_speed_mmps")
+# The delay alone, the speed caps left as the table has them (the ramp's own acceleration sets the speeds).
+DELAY_SEARCH = SERVO_SEARCH[:1]
 
 
 def _score(job: Tuple[Dict[str, Any], Tuple[str, ...], bool]) -> float:
@@ -87,12 +95,27 @@ def report(title: str, before: float, after: float) -> None:
     print(f"{title}: {before:.3f} before, {after:.3f} after")
 
 
-def main() -> int:
+def main(argv: Sequence[str]) -> int:
+    modes = {(): WHEEL_SEARCH + SERVO_SEARCH, ("--servos",): SERVO_SEARCH, ("--servo-delay",): DELAY_SEARCH,
+             ("--wheels-held-noload",): WHEELS_HELD_NOLOAD}
+    if tuple(argv) not in modes:
+        print("usage: fit_recording.py [--servos | --servo-delay | --wheels-held-noload]", file=sys.stderr)
+        return 2
+    servo_search = DELAY_SEARCH if tuple(argv) == ("--servo-delay",) else SERVO_SEARCH
+    wheels_only = tuple(argv) == ("--wheels-held-noload",)
+    servos_only = bool(argv) and not wheels_only
     start = params.values(params.load())
     with multiprocessing.get_context("spawn").Pool(WORKERS) as pool:
-        fitted, wheel_fit, n_wheels = descend(pool, start, WHEEL_SEARCH, replay.FIT_WHEELS, True)
-        fitted, servo_fit, n_servos = descend(pool, fitted, SERVO_SEARCH, replay.FIT_SERVOS, False)
-    changed = {spec[0]: fitted[spec[0]] for spec in WHEEL_SEARCH + SERVO_SEARCH}
+        if servos_only:
+            fitted, wheel_fit, n_wheels = dict(start), _score((start, replay.FIT_WHEELS, True)), 0
+        else:
+            wheel_search = WHEELS_HELD_NOLOAD if wheels_only else WHEEL_SEARCH
+            fitted, wheel_fit, n_wheels = descend(pool, start, wheel_search, replay.FIT_WHEELS, True)
+        if wheels_only:
+            servo_fit, n_servos = _score((fitted, replay.FIT_SERVOS, False)), 0
+        else:
+            fitted, servo_fit, n_servos = descend(pool, fitted, servo_search, replay.FIT_SERVOS, False)
+    changed = {spec[0]: fitted[spec[0]] for spec in modes[tuple(argv)]}
     print(f"replays scored: {n_wheels} for the treads, {n_servos} for head and lift")
     for name, value in changed.items():
         print(f"  {name}: {start[name]} -> {round(value, 5)}")
@@ -107,4 +130,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

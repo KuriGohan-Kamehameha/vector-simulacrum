@@ -250,7 +250,9 @@ def _chassis_xml(v: Dict[str, Any], d: Dict[str, Any]) -> str:
 
 def _actuators_xml(v: Dict[str, Any], d: Dict[str, Any]) -> str:
     drive = tread_drive(v)
-    p_max = v["motor_power_max"]
+    # The control is duty x battery voltage / reference voltage (robot._drive_treads); sag only lowers it.
+    # The range only has to admit that; it must not do the scaling itself, so below the reference it stays 1.
+    p_max = v["motor_power_max"] * max(1.0, v["battery_rest_voltage_v"] / v["motor_reference_voltage_v"])
     s_tq = v["servo_torque_max_mNm"] * 0.001
     assert p_max > 0.0 and s_tq > 0.0, "actuator limits must be positive"
     out = ""

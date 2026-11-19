@@ -24,7 +24,7 @@ class TableIsSound(unittest.TestCase):
 
     def test_counts_add_up_and_measured_and_fitted_cite_the_recording(self) -> None:
         counts = params.summary(self.doc)
-        self.assertEqual((counts["measured"], counts["fitted"], counts["assumed"], counts["chosen"]), (9, 10, 21, 7))
+        self.assertEqual((counts["measured"], counts["fitted"], counts["assumed"], counts["chosen"]), (10, 12, 23, 7))
         self.assertEqual(sum(counts[name] for name in params.PROVENANCE), counts["total"])
         self.assertGreater(counts["missing"], 0)
         for name, entry in self.doc["parameters"].items():
@@ -32,7 +32,8 @@ class TableIsSound(unittest.TestCase):
                 self.assertIn("REC", entry["source"], name)
             if entry["provenance"] == "fitted":
                 self.assertTrue("Fitted by fit_recording.py" in entry["source"]
-                                or "simulacrum/imu_fit.py" in entry["source"], name)
+                                or "simulacrum/imu_fit.py" in entry["source"]
+                                or "simulacrum/motor_heat_fit.py" in entry["source"], name)
                 self.assertIn("low", entry, name)
 
     def test_every_assumed_entry_has_a_range_around_its_value(self) -> None:

@@ -16,8 +16,8 @@ part of it.** One robot, one run of 162 s, one surface, one battery charge
 (4.10 V falling to 3.96 V), wheel speeds up to 100 mm/s. Nothing here says
 anything about another robot, another surface, or faster driving.
 
-Of 138 parameters: 9 are measured on that recording, 10 are fitted to it, 17
-come from the manual, 74 from vendor or household software, 21 are still
+Of 145 parameters: 10 are measured on the recordings, 12 are fitted to them, 17
+come from the manual, 76 from vendor or household software, 23 are still
 assumed about the robot, and 7 are settings of the scene and the solver that
 have no real value to find. On the segments the fit never saw, the model's
 wheel speed and gyro error fell from 0.33 of each segment's scale (the
@@ -38,6 +38,7 @@ most sensitive to, by a wide margin ("The assumed values, ranked" below).
 | `simulacrum/hazards.py` | Cliff, falling and picked-up flags |
 | `simulacrum/recording.py` | Reads the recording of the real robot and measures it. No MuJoCo |
 | `simulacrum/imu_fit.py` | Fits the accelerometer's steady offsets and the pitch of its frame from the recording. No MuJoCo |
+| `simulacrum/wheelstand.py`, `wheelstand_check.py` | The centre of mass from balance angles on the rear wheels and on one tread edge, read by the robot's own accelerometer; the check that the model tips where the formula says (MuJoCo) |
 | `simulacrum/replay.py` | Replays the recording's commands through the model and scores the difference |
 | `simulacrum/task.py` | The training task: observation, action, reward, episode ends, randomisation |
 | `simulacrum/vec_env.py` | Many tasks stepped together, in up to 4 worker processes |
@@ -51,8 +52,9 @@ most sensitive to, by a wide margin ("The assumed values, ranked" below).
 | `evidence/hw-rec-20261115/` | The recording, the script that made it, SHA-256 in the table's `REC` source |
 | `evidence/` | Smoke run learning curves and outputs; the fit, replay, measurement, ranking and fault-check outputs; the hardware findings the third version started from; the conferral with GPTPCS-Astra |
 | `hardware/record_barriered.py` | The recorder for the next recording. **Not run yet.** Written by cpcs-5f62f24, who holds the robot; nothing here runs it against one |
-| `tests/` | `run_all.py`, eleven test files, `mutate.py` |
+| `tests/` | `run_all.py`, thirteen test files, `mutate.py` |
 | `run_in_ct.sh` | Copies this directory into CT 930 and runs a file there |
+| `mcp_server.py`, `simulacrum/mcp_service.py` | An MCP server over stdio: the table, the recordings and the recorder's command line as tools. Read-only; no robot, no MuJoCo |
 
 ## Use
 
@@ -91,6 +93,48 @@ Keep to at most four worker processes and short runs in CT 930: the node is
 a shared hypervisor. One process runs about 9 times real time. Do not start
 a second `run_in_ct.sh` while one is running: each run replaces the copy in
 the container.
+
+## The MCP server
+
+Any MCP client that starts a stdio server can run it: the command is a
+Python 3.9 or later and the argument is the path to `mcp_server.py`. No MCP
+library, no MuJoCo, no `anki_vector`, nothing to install. The generic entry,
+for clients configured with JSON:
+
+```json
+{"mcpServers": {"vector-simulacrum": {"command": "python3", "args": ["<skill>/mcp_server.py"]}}}
+```
+
+On Windows the command is usually `py` with `["-3", "<skill>\\mcp_server.py"]`.
+With Claude Code:
+
+```bash
+claude mcp add --scope user vector-simulacrum -- python3 <skill>/mcp_server.py
+```
+
+Messages are one JSON-RPC object per line, UTF-8 with a bare newline on
+every platform (the server switches its streams off the platform's text
+mode); log lines go to stderr. Tools are added as the work needs them;
+`tools/list` shows only what is wired and tested (`tests/test_mcp.py`).
+
+Run on: macOS with Python 3.14 and with the stock Python 3.9, and Linux in
+CT 930. Not run on Windows; the newline and encoding handling is written
+for it but has not been seen working there.
+
+| Tool | What it returns |
+|---|---|
+| `parameters` | Table entries, filtered by provenance and by part of the name, with range and source |
+| `recording_summary` | For one recording: rows, the recorder's begin and end rows and any skip or failure, cliff rows, state interval, each spin's turn fraction, sensor scatter in spins, the gyro frame fit, the gyro at rest. A figure the recording cannot support comes back as `not_computable` with the reason |
+| `spin_fractions` | Turn rate over the no-slip rate for each spin, by wheel speed, beside the first recording and the table's 0.50 |
+| `wheelstand_balance` | `com_x` and `com_z` from a wheelstand recording, with both balance angles, every trial and the intervals; with no path, the angles the table's centre of mass predicts |
+| `recorder_plan` | Checks a choice of the recorder's phases and writes out the command for a person to run: as an argv list with the files for stdin and stdout, and as one line for a POSIX shell and one for Windows `cmd.exe`, with the space each phase needs and which ones need watching. **It runs nothing** |
+
+What it will not do: connect to the robot, run the recorder, write a file,
+or read anything but a `.jsonl` file inside this directory (64 MB at most).
+A recording copied in, for example `run2-dark.jsonl`, can be read by name.
+`recorder_plan` refuses an edge run without a ruler distance, `repeat`
+anywhere but last, a phase listed twice, and a note with any character that
+could break the shell line (quotes, `$`, backticks, backslashes).
 
 ## The parameter table
 
@@ -166,9 +210,9 @@ the fit.
 | `tread_friction_power_fraction` | 0.057 | 0.10 | 0.06 to 0.15 | The 30 mm/s spins: how late and how slowly a small command breaks the treads loose |
 | `wheel_stall_torque_mNm` | 25 (assumed) | 100 | 50 to 200 | The rise of wheel speed in every segment, together with the next one |
 | `wheel_armature_gcm2` | 1000 (assumed) | 2000 | 1000 to 4000 | The same rise, and how the treads slow after the stop |
-| `servo_command_delay_ms` | 30 (shared with the treads) | 225 | 150 to 300 | When head angle and lift height first change after a command (about 0.21 to 0.28 s in the recording) |
-| `head_speed_max_radps` | no limit | 1.75 | 1.3 to 4.1 | The slope of head angle in two moves |
-| `lift_speed_max_radps` | no limit | 2.8 | 2.0 to 6.0 | The slope of lift height in one move |
+| `servo_command_delay_ms` | 30 (shared with the treads) | 105 (was 225; see below) | 80 to 130 | When head angle and lift height first change after a command, with the ramp below |
+| `head_speed_max_radps` | no limit | 10, no cap (was 1.75) | 3.5 to 10 | No cap below the SDK's requested speed shows once the ramp is in |
+| `lift_speed_max_radps` | no limit | 10, no cap (was 2.8) | 6.0 to 10 | The same |
 
 The fit is a coordinate search over those eight values, one at a time, four
 sweeps, 129 replays of the tread segments and 87 of the head and lift
@@ -177,6 +221,106 @@ a global optimum: two single changes in the table below lower the fit-set
 score a little (to 0.165 and 0.159) while raising the held-out score. They
 were not adopted, because choosing by the held-out score would turn it into
 a second fit set.
+
+### The head and lift ramp, refitted on 2026-11-18
+
+The first fit moved the head and lift at a constant rate (1.75 and 2.8 rad/s
+after 225 ms). The robot does not: in both recordings the longer moves are
+faster. The peak head speeds are 92, 144 and 230 deg/s over 15, 32 and
+46 degrees on 2026-11-15, and 195 to 283 deg/s over 67 degrees on
+2026-11-18. The SDK's `set_head_angle` and `set_lift_height` both ask for
+`accel=10.0, max_speed=10.0` by default (rad/s^2 and rad/s; read in the
+installed SDK, source SDKPY), and the recorder uses the defaults. So the
+model now speeds the command up at that acceleration and slows it down so
+it stops on the target (`_profile_step` in `simulacrum/robot.py`). Only the
+delay is fitted (`fit_recording.py --servo-delay`, on the same three moves).
+
+| Scored on (mean error / joint range) | Constant rate, 225 ms | Ramp, 105 ms |
+|---|---|---|
+| 2026-11-15, the three moves fitted | 0.019 | 0.033 |
+| 2026-11-15, the two moves held out | 0.052 | 0.035 |
+| 2026-11-18 run A, all 15 moves, never fitted | 0.060 | 0.032 |
+
+The constant-rate column is the old values with the ramp switched off
+(acceleration 10^6 rad/s^2), which reproduces the old code's 0.060 on run
+A. It fits its own three moves better and everything it did not see worse. Fitting the cap as well as the delay,
+with the ramp in, gives 1.24 rad/s. That scores 0.026 on the fitted moves,
+but 0.065 and 0.081 on the two held-out sets, so it was not adopted. Run A
+on its own would choose a delay of 110 to 125 ms: the delay is a round trip
+through the wire-pod host and may differ from day to day.
+
+### The spins of 2026-11-18: the centre of mass, again
+
+Run E spun the robot for 3 s each way at 150 and 220 mm/s. Both wheel speeds
+match the model within 4 mm/s. The turn rate does not: the robot turned at
+184 and 270 deg/s, which is 0.53 of the no-slip rate at both speeds (0.48 to
+0.51 at 30 to 100 mm/s on 2026-11-15). The model turns at 0.85 to 0.90 of
+the robot's rate (`replay_recording.py --wheels-of`).
+
+| Changed, one at a time, to its range end | Model turn rate / robot's, four spins |
+|---|---|
+| none (table) | 0.85 to 0.90 |
+| `com_x_mm` -30 / -14 | 1.03 to 1.09 / 1.38 to 1.49 |
+| `tread_friction` 0.5 / 1.3 | 0.84 to 0.86 / 0.82 to 0.88 |
+| `com_z_mm` 15 / 30 | 0.87 to 0.90 / 0.84 to 0.90 |
+
+Only `com_x_mm` matters. At -29 the four spins come out at 0.94 to 1.04,
+and the 2026-11-15 wheel scores barely move between -24 and -29 (fit
+0.167 to 0.173, held out 0.141 to 0.145). One run on an unrecorded surface,
+pointing to the end of the assumed range, is not enough to change a value:
+`com_x_mm` stays -24 and assumed. The rear wheelstand decides it: -24
+predicts a balance at 64.9 degrees, -29 at 59.4.
+
+### Battery, heat and the top speed (2026-11-18)
+
+The operator: "simulate voltage sag and other factors that affect motor
+efficacy/responsiveness ... from real sustained-load tests on multiple units".
+What one unit so far gives:
+
+**The top speed.** Run F sent `set_wheel_motors` 300 mm/s both ways in
+spins for 150 s (3 s on, 2 s off; it ended when the robot met a cliff).
+The robot reached 243 to 247 mm/s cold. The model was capping
+`set_wheel_motors` at the firmware's `MAX_WHEEL_SPEED_MMPS` = 220, but the
+firmware applies that cap in path following only (`steeringController.cpp`
+line 419, `CheckWheelSpeedLimits`), not in direct drive. The cap is gone from
+`set_wheel_motors`; the motor sets the ceiling. To reach 245 the no-load speed
+had to rise from 265 to 305 mm/s, and the other tread values were refitted on
+the 2026-11-15 fit set with it held (`fit_recording.py
+--wheels-held-noload`): fit set 0.170 -> 0.143, held out 0.143 -> 0.140.
+
+**The battery.** The tread power is a PWM duty (`hal_motors.cpp`), so the
+motor sees duty x battery voltage, and the firmware does not compensate. The
+model scales the drive by `battery_rest_voltage_v` / `motor_reference_voltage_v`
+(stall torque and top speed fall with voltage; back-EMF damping does not),
+draws the voltage per episode between 3.6 and 4.1 V (the SDK's low and full
+marks), and sags it by `battery_sag_v_per_power` x summed duty. The sag is
+assumed: the SDK's `get_battery_state` returned 4.0797 V 165 times in a row
+during run F's full-power spins, so it cannot be measured through the SDK.
+The reference voltage, 4.03 V, is the midpoint of the 4.10 and 3.96 V
+reported for the 2026-11-15 run; neither reading is in its files.
+
+**Heat.** The left tread's ceiling stayed between 238 and 247 mm/s through run F, with no trend;
+the right tread's fell from 250 to 232 (one way) and 241 to 223 (the
+other). One battery feeds both, so the fall is in the right motor.
+`simulacrum/motor_heat_fit.py` fits a first-order heat state per tread on the
+first 10 cycles and predicts the last 5:
+
+| Tread | Held-out error, heat model | Held-out error, constant ceiling | Adopted |
+|---|---|---|---|
+| right | 1.9 mm/s | 8.5 mm/s | 0.207 %/s of drive lost at full duty, tau 85 s |
+| left | 2.8 mm/s | 1.2 mm/s | none (the fit is noise) |
+
+150 s does not pin the time constant: 40 to 600 s fit within 1.5x of the
+best error, trading against the total loss (14 to 77 %). What it pins is the
+initial rate, 0.13 to 0.34 %/s; those are the ranges training draws from.
+The model reproduces the right tread's fall under the same schedule within
+the test's +/-50 % (`tests/test_motor_heat.py`).
+
+**Not yet met.** "Multiple units": only one unit has been run; the other two
+were offline. A run to the plateau (the full 600 s or more, away
+from edges) would pin the heat's time constant. The SDK cannot see motor
+temperature, so heat is an inference from one tread falling while the other
+holds.
 
 ### Fitted without the model: the accelerometer
 
@@ -565,7 +709,8 @@ the firmware disagreements.
 - **Scene.** A table slab with real edges and a floor below; sizes from the
   table (600 by 600 mm, 300 mm high by default). Optional boxes.
 - **Timing.** Physics at 1 ms, control at 5 ms (200 Hz), state messages
-  every 60 ms, wheel commands delayed 60 ms, head and lift commands 225 ms.
+  every 60 ms, wheel commands delayed 60 ms, head and lift commands 105 ms and
+  ramped at the SDK's 10 rad/s^2.
 - **SDK surface.** `set_wheel_motors`, `drive_straight`, `turn_in_place`,
   `set_head_angle`, `set_lift_height`, `stop_all_motors`,
   `request_control`; `command_head_angle` and `command_lift_height` return
@@ -604,7 +749,8 @@ the firmware disagreements.
   `cliff_detect_range_mm`.
 - The firmware's pick-up detection from gyro and accelerometer motion. Here
   picked up means three or more cliff sensors see a drop for 40 ticks.
-- Battery (motor power does not sag as it drains), charger, cubes, touch,
+- The battery's sag under load (modelled, but its size is assumed: the SDK's
+  reading does not move), charger, cubes, touch,
   the stall protection, the lift's four-bar linkage.
 - Tread compliance. The wheels are rigid cylinders, so the robot stands on
   four contacts. That is the likely reason the turn rate depends so sharply
@@ -984,6 +1130,84 @@ a soft landing on every side, state messages logged for the whole run with
 | 9a | **Added.** Set the head to 0 degrees before every spin and say so in the file; one pair of 60 mm/s spins with the head at 0 and one with it at 22 degrees | The turn rate without the head-frame correction; the correction itself |
 | 9b | **Added.** Standing still for 3 s at each of head -20, 0, 20 and 40 degrees, at each of four headings a quarter turn apart (16 stops) | Untangles head angle from heading in the accelerometer fit; separates the frame's pitch from the x offset |
 | 9c | **Added, if a phone can be fixed overhead.** Video of items 3 and 5 with a mark on the robot | Turn rate and turn centre against ground truth, which no signal in the robot gives |
+
+### Wheelstands: the centre of mass from two balance angles
+
+The centre of mass along the robot (`com_x_mm`) is the assumed value training
+is most sensitive to. A wheelstand measures it with the robot's own
+accelerometer and nothing else.
+
+A body standing on a round wheel balances when its centre of mass is straight
+above the axle, because on flat ground a circle touches under its centre.
+Tipped back onto its rear wheels, the robot balances at the pitch where
+`tan(pitch) = (com_x + 48) / (com_z - 10.75)`. Tipped onto one tread's outer
+edge it balances where `tan(roll) = edge / com_z`, with the edge at half the
+width across both treads. The side stand gives `com_z`; the rear stand then
+gives `com_x`. The table's assumed (-24, 22) mm predicts **64.9 degrees** on the
+rear wheels and **51.8 degrees** on the edge.
+
+Checked in the model (`wheelstand_check.py`, CT 930). Releasing it from rest
+and bisecting which way it falls, the model tips at 64.82 degrees on its rear
+wheels against 64.90 from the formula, and at 51.855 on the edge against 51.854.
+Nothing but the standing wheels touches the table at either angle. The
+model's accelerometer, held still at those angles and read through
+`wheelstand.tilt_deg`, gives 64.91 and 51.81.
+
+**What the measurement needs** (executed, `solve_interval`): with the
+edge distance from the table's ranges, ±0.5 degrees on both angles gives
+`com_x` anywhere from -30.6 to -17.0 mm, no better than the range already
+assumed. A ruler across the outside of both treads (to ±0.5 mm per edge)
+narrows that to -28.2 to -19.6 mm. The angles alone are worth -25.4 to -22.6;
+what remains is the table's ranges for the wheel base and the rear wheel
+radius. One degree on the rear stand moves `com_x` by 1.1 mm; one degree on the
+side stand moves it by 1.7 mm (and `com_z` by 0.8), as does 1 mm on the edge,
+because `com_z` carries into `com_x`. The report gives both intervals.
+
+**How to do it** (a person; the robot drives nothing):
+
+1. On a soft, flat surface, run the recorder with `PHASES=wheelstand`
+   (`WHEELSTAND_S`, default 180 s, at most 300). It sets the head level and
+   the lift down, then commands nothing and records.
+2. Leave it standing for 2 s. Then, for the rear stand: tip it back onto its
+   rear wheels to an angle near 65 degrees, hold it still about a second,
+   and let go. It falls back onto its treads or over onto its back. Repeat
+   on both sides of the balance point, closing in. About eight releases.
+3. The same onto one tread's outer edge, near 52 degrees, either side.
+4. Measure the width across the outside of both treads with a ruler.
+5. `wheelstand_balance` (MCP) or `python3 -m simulacrum.wheelstand <file> <width>`.
+
+Releases that fell each way bracket the balance angle, and the middle of the
+bracket is the estimate. Holds where a hand moved the robot away slowly count
+as "held" trials and are used only when there is no bracket: a finger pushes.
+A trial with the head off level or the lift off its lowest is set aside; the
+firmware may move them while the robot is held, which is not known.
+
+Not yet measured: no wheelstand recording exists. The accelerometer reads
+1.039 g at rest; a common scale cancels in the angle, a scale that differs
+between axes would not, and that is not known either.
+
+### Against the hardware: the run when the robot is back
+
+The operator's go, 2026-11-18: when the robot is back within reach of its cube, this
+lane runs the recorder itself on the wire-pod host and adjusts the table.
+The order, each a separate run of `hardware/record_barriered.py`:
+
+1. `PHASES=rest,headlift,spins`: the turn rate at 150 and 220 mm/s against the
+   model's (`spin_fractions`, `replay_recording.py`).
+2. `PHASES=wheelstand`, if a person is there to tip it (the section above).
+3. `PHASES=rest,wheelie`: the cube within reach and the room lit. The script
+   connects the cube (waits up to 12 s; with no cube it commands nothing),
+   records the robot's and the cube's poses, starts `pop_a_wheelie` and then
+   only records for `WHEELIE_WATCH_S` (default 8). Once the lift leaves the
+   cube the robot swings on its rear wheels, and where its angular
+   acceleration changes sign is the balance angle. The analysis of that
+   swing waits for the first recording: whether the treads lock and when
+   the lift leaves the cube are not known, and a model of the move written
+   before seeing one would be a guess.
+
+Every value changed after that is filed `measured` (a direct reading) or
+`fitted` (a fit to these runs) with its evidence, and the ranking, replay
+and tests are rerun.
 
 ### What hands can settle, in order
 

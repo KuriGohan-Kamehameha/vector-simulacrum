@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from simulacrum import params, replay  # noqa: E402
+from simulacrum import params, recording, replay  # noqa: E402
 
 EXIT_OK, EXIT_USAGE = 0, 2
 TORQUE, INERTIA = "wheel_stall_torque_mNm", "wheel_armature_gcm2"
@@ -104,10 +105,80 @@ def sensitivity(values: Dict[str, Any]) -> Dict[str, List[float]]:
     return out
 
 
+def _inside(name: str) -> Optional[Path]:
+    """A recording inside this skill, or None."""
+    root = Path(__file__).resolve().parent
+    path = (root / name).resolve()
+    if root not in path.parents or not path.is_file():
+        print(f"error: the recording must be a file inside {root}, got {name!r}", file=sys.stderr)
+        return None
+    return path
+
+
+def _steady(trace: Sequence[Any], duration_s: float) -> Dict[str, float]:
+    """Mean |gyro z| and mean |wheel speed| over the second half of the commanded time, model and robot."""
+    rows = [(m, r) for t, m, r in trace if 0.5 * duration_s <= t <= duration_s]
+    assert rows, "no samples in the second half of the segment"
+    mean = lambda xs: sum(xs) / len(xs)
+    return {"n": len(rows),
+            "robot_turn_dps": round(mean([abs(math.degrees(r["gyro"][2])) for _, r in rows]), 1),
+            "model_turn_dps": round(mean([abs(m["gyro_z_dps"]) for m, _ in rows]), 1),
+            "robot_wheel_mmps": round(mean([0.5 * (abs(r["wl"]) + abs(r["wr"])) for _, r in rows]), 1),
+            "model_wheel_mmps": round(mean([0.5 * (abs(m["wl"]) + abs(m["wr"])) for m, _ in rows]), 1)}
+
+
+def other_wheels(values: Dict[str, Any], name: str) -> int:
+    """Every wheel segment of another recording through the model, scored as one held-out set."""
+    path = _inside(name)
+    if path is None:
+        return EXIT_USAGE
+    states, commands = recording.load(path)
+    segs = {label: seg for label, seg in recording.segments(commands, values).items() if seg.kind == "wheels"}
+    if not segs:
+        print(f"error: no wheel segments in {name}", file=sys.stderr)
+        return EXIT_USAGE
+    results = []
+    for label, seg in segs.items():
+        result = replay.replay(seg, values, states)
+        result.update(_steady(result.pop("trace"), seg.t_stop - seg.t_cmd))
+        results.append(result)
+    print_wheels(f"wheel segments of {name}", results, values)
+    print("  segment        turn deg/s robot  model   wheel mm/s robot  model   (second half, gyro z)")
+    for r in results:
+        print(f"  {r['label']:13s}  {r['robot_turn_dps']:16.1f}  {r['model_turn_dps']:5.1f}  "
+              f"{r['robot_wheel_mmps']:16.1f}  {r['model_wheel_mmps']:5.1f}")
+    print("REPLAY " + json.dumps({"recording": name, "score": round(replay.wheel_score(results, values), 4),
+                                  "segments": results}, sort_keys=True))
+    return EXIT_OK
+
+
+def other_servos(values: Dict[str, Any], name: str) -> int:
+    """Every head and lift move of another recording through the model, scored as one held-out set."""
+    path = _inside(name)
+    if path is None:
+        return EXIT_USAGE
+    _, commands = recording.load(path)
+    labels = [label for label, seg in recording.segments(commands, values).items() if seg.kind in ("head", "lift")]
+    if not labels:
+        print(f"error: no head or lift moves in {name}", file=sys.stderr)
+        return EXIT_USAGE
+    results = replay.compare(values, labels, path)
+    print_servos(f"head and lift moves of {name}", results, values)
+    by_kind = {kind: round(replay.servo_score([r for r in results if r["kind"] == kind], values), 4)
+               for kind in ("head", "lift") if any(r["kind"] == kind for r in results)}
+    print("REPLAY " + json.dumps({"recording": name, "score": round(replay.servo_score(results, values), 4),
+                                  "by_kind": by_kind, "segments": results}, sort_keys=True))
+    return EXIT_OK
+
+
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description="Replay the real-robot recording through the model.")
     parser.add_argument("--set", action="append", default=[], metavar="NAME=NUMBER", help="override one parameter")
     parser.add_argument("--sensitivity", action="store_true", help="also score the treads with one value changed at a time")
+    parser.add_argument("--servos-of", metavar="RECORDING", help="instead, replay every head and lift move of another "
+                        "recording (a file inside this skill), which the fit never saw")
+    parser.add_argument("--wheels-of", metavar="RECORDING", help="instead, replay every wheel segment of another "
+                        "recording, with the steady turn rate and wheel speed of model and robot side by side")
     args = parser.parse_args(argv)
     values = params.values(params.load())
     for pair in args.set:
@@ -116,6 +187,10 @@ def main(argv: List[str]) -> int:
             print(f"error: --set wants a known name=number, got {pair!r}", file=sys.stderr)
             return EXIT_USAGE
         values[name] = float(text)
+    if args.servos_of is not None:
+        return other_servos(values, args.servos_of)
+    if args.wheels_of is not None:
+        return other_wheels(values, args.wheels_of)
     out = run(values)
     print_wheels("wheel segments the fit used", out["fit_wheels"]["segments"], values)
     print_wheels("wheel segments held out", out["hold_wheels"]["segments"], values)
