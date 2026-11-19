@@ -27,12 +27,14 @@ def input_rows(path):
     return rows, time, wheels, gyro, stop
 
 
-def run(rows, time, wheels, span, *, dense=False, include_pose=False):
+def run(rows, time, wheels, span, *, dense=False, include_pose=False, configure=None, observe=None):
     values = dict(params.values(params.load(model="vector_2")), **replay.OPEN_TABLE)
     builder = mjcf.build_mjcf
 
     def build(v, obstacles=()):
         root = ET.fromstring(contact_model(builder(v, obstacles), v))
+        if configure is not None:
+            configure(root)
         # At 48 mm use precisely the same contact solver and follower joints.
         if span == 48:
             for suffix in ("fl", "fr", "rl", "rr"):
@@ -72,6 +74,8 @@ def run(rows, time, wheels, span, *, dense=False, include_pose=False):
         output[i, :3] = [math.degrees(d.sensordata[gyro]), *sim._wheel_speeds()]
         if include_pose:
             output[i, 3:] = [*sim.pose_mm()[:2], sim._yaw()]
+        if observe is not None:
+            observe(m, d, clock[i])
         if i+1 < len(clock):
             mujoco.mj_getState(m, d, saved, spec)
             torque = d.ctrl[motors].copy()

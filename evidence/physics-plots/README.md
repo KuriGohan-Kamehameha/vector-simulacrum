@@ -1,5 +1,13 @@
 # Vector physics overlays
 
+## Balanced-wheel pivot and contact geometry
+
+![Pivot tracks during nine alternating turns](balanced-pivot.png)
+
+![Contact geometry transfer and native gyro check](pivot-transfer.png)
+
+[Pressure measurements, held-out results and pivot coordinates](../endurance-drift/pivot.md)
+
 ## Alternating spins and edge detection
 
 ![Vector 2.0 turn-by-turn translation](endurance-drift.png)
