@@ -2,6 +2,10 @@
 
 ## Turning and tread contact
 
+![Hybrid encoder replay of Vector 2.0 stops](hybrid-encoder-replay.png)
+
+[Held-out hybrid results and one-frame switch sensitivity](../hw-rec-20261119/hybrid-replay.md)
+
 ![Native encoder replay with 42 mm and 48 mm patch spans](native-span-replay.png)
 
 [Held-out timing test and raw-count input comparison](../hw-rec-20261119/native-replay.md)
