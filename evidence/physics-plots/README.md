@@ -2,6 +2,10 @@
 
 ## Turning and tread contact
 
+![Measured and simulated braking in both directions](repeated-braking.png)
+
+[Held-out braking scores and signed wheel and gyro traces](../hw-rec-20261119/repeated-braking.md)
+
 ![Encoder-to-gyro timing calibration and held-out turn](turn-lag-transfer.png)
 
 [Timing methods, before/after scores and per-sample data](../hw-rec-20261119/unit2-ccw100.md#encoder-to-gyro-timing-test)
