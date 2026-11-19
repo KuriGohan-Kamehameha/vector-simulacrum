@@ -1,5 +1,13 @@
 # Vector physics overlays
 
+## Independent camera tracking
+
+![Camera, odometry and two contact models after each spin](camera-rest-drift.png)
+
+![Camera trace through four alternating spins](camera-spin-traces.png)
+
+[Calibration, upright video, independent optical checks and per-turn vectors](../camera-spins/README.md)
+
 ## Contact orientation and integration step
 
 ![Constant-speed migration and recorded-turn checks](pressure-sweep.png)
