@@ -81,6 +81,15 @@ class Parameters(unittest.TestCase):
         self.assertTrue(com["low"] < com["value"] < com["high"])
         self.assertTrue(call("parameters", {"provenance": "guessed"})["error"])
 
+    def test_the_vector_2_set_marks_what_it_inherits(self) -> None:
+        body = call("parameters", {"model": "vector_2", "name": "display_resolution"})["body"]
+        self.assertEqual((body["model"], body["entries"][0]["value"], body["entries"][0]["overrides_base"]),
+                         ("vector_2", [160, 80], True))
+        noload = call("parameters", {"model": "vector_2", "name": "tread_noload"})["body"]["entries"][0]
+        self.assertIn("not verified on a Vector 2.0", noload["inherited"])
+        self.assertNotIn("inherited", call("parameters", {"name": "tread_noload"})["body"]["entries"][0])
+        self.assertTrue(call("parameters", {"model": "vector_3"})["error"])
+
 
 class Recordings(unittest.TestCase):
     def test_summary_of_the_first_recording(self) -> None:

@@ -90,6 +90,20 @@ class ModelLoads(unittest.TestCase):
 
 
 @unittest.skipUnless(_common.HAVE_MUJOCO, _common.SKIP_REASON)
+class Vector2(unittest.TestCase):
+    def test_the_2_0_set_and_drawn_2_0_robots_build_settle_and_spin(self) -> None:
+        doc = params.load(model="vector_2")
+        for values in (params.values(doc), params.sample(doc, 3), params.sample(doc, 4)):
+            sim = VectorSim(values=values)
+            sim.advance(0.5)
+            z0 = sim.pose_mm()[2]
+            sim.set_wheel_motors(-100.0, 100.0)
+            sim.advance(2.0)
+            self.assertGreater(abs(math.degrees(sim.state.pose_angle_rad)), 20.0, "it turned")
+            self.assertLess(abs(sim.pose_mm()[2] - z0), 3.0, "it stayed on its treads")
+
+
+@unittest.skipUnless(_common.HAVE_MUJOCO, _common.SKIP_REASON)
 class Drive(unittest.TestCase):
     def _check_straight(self, dist_mm: float, speed_mmps: float) -> None:
         sim = VectorSim()
