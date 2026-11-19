@@ -2,6 +2,10 @@
 
 ## Turning and tread contact
 
+![Native encoder replay with 42 mm and 48 mm patch spans](native-span-replay.png)
+
+[Held-out timing test and raw-count input comparison](../hw-rec-20261119/native-replay.md)
+
 ![Native encoder and yaw braking overlays](native-wheel-stop.png)
 
 [Four Vector 2.0 stops on the robot clock](../hw-rec-20261119/native-stops.md)
