@@ -9,6 +9,52 @@ import _common  # noqa: F401  (puts the skill on the path)
 from simulacrum import params
 
 
+class Vector2(unittest.TestCase):
+    def setUp(self) -> None:
+        self.one, self.two = params.load(model="vector_1"), params.load(model="vector_2")
+
+    def test_it_replaces_only_what_it_names_and_marks_inherited_measurements(self) -> None:
+        one, two = self.one["parameters"], self.two["parameters"]
+        self.assertEqual(set(one), set(two))
+        replaced = {n for n, e in two.items() if e.get("overrides_base")}
+        self.assertEqual(replaced, {"display_resolution_px", "battery_capacity_mah", "total_mass_g", "com_x_mm",
+                                    "com_z_mm", "camera_fov_horizontal_deg", "camera_fov_vertical_deg"})
+        self.assertEqual((one["display_resolution_px"]["value"], two["display_resolution_px"]["value"]), ([184, 96], [160, 80]))
+        for name in set(one) - replaced:
+            self.assertEqual(one[name]["value"], two[name]["value"], name)
+            inherited_measurement = one[name]["provenance"] in ("measured", "fitted")
+            self.assertEqual("inherited" in two[name], inherited_measurement, name)
+            self.assertNotIn("inherited", one[name], name)
+        self.assertEqual(params.summary(self.two)["inherited"], 28)
+        self.assertEqual(self.two["robot"], "Digital Dream Labs Vector 2.0")
+
+    def test_ranges_for_what_2_0_may_change_cover_the_1_0_ranges(self) -> None:
+        for name in ("total_mass_g", "com_x_mm", "com_z_mm"):
+            a, b = self.one["parameters"][name], self.two["parameters"][name]
+            self.assertLessEqual(b["low"], a["low"], name)
+            self.assertGreaterEqual(b["high"], a["high"], name)
+
+    def test_the_model_comes_from_the_environment_and_bad_names_are_refused(self) -> None:
+        import os
+        from unittest import mock
+        with mock.patch.dict(os.environ, {params.MODEL_ENV: "vector_2"}):
+            self.assertEqual(params.load()["model"], "vector_2")
+        with mock.patch.dict(os.environ, {params.MODEL_ENV: "vector_3"}), self.assertRaises(ValueError):
+            params.load()
+
+    def test_a_variant_naming_an_unknown_entry_is_refused(self) -> None:
+        import json
+        base = json.loads(params.TABLE_PATH.read_text(encoding="utf-8"))
+        variant = json.loads(params.MODELS["vector_2"].read_text(encoding="utf-8"))
+        variant["overrides"]["no_such_thing"] = dict(variant["overrides"]["total_mass_g"])
+        with self.assertRaises(ValueError):
+            params._apply_variant(base, variant)
+        clash = json.loads(params.MODELS["vector_2"].read_text(encoding="utf-8"))
+        clash["sources"]["TRM"] = {"what": "something else"}
+        with self.assertRaises(ValueError):
+            params._apply_variant(base, clash)
+
+
 class TableIsSound(unittest.TestCase):
     def setUp(self) -> None:
         self.doc = params.load()
@@ -24,7 +70,7 @@ class TableIsSound(unittest.TestCase):
 
     def test_counts_add_up_and_measured_and_fitted_cite_the_recording(self) -> None:
         counts = params.summary(self.doc)
-        self.assertEqual((counts["measured"], counts["fitted"], counts["assumed"], counts["chosen"]), (10, 12, 23, 7))
+        self.assertEqual((counts["measured"], counts["fitted"], counts["assumed"], counts["chosen"]), (10, 18, 23, 7))
         self.assertEqual(sum(counts[name] for name in params.PROVENANCE), counts["total"])
         self.assertGreater(counts["missing"], 0)
         for name, entry in self.doc["parameters"].items():
@@ -33,7 +79,8 @@ class TableIsSound(unittest.TestCase):
             if entry["provenance"] == "fitted":
                 self.assertTrue("Fitted by fit_recording.py" in entry["source"]
                                 or "simulacrum/imu_fit.py" in entry["source"]
-                                or "simulacrum/motor_heat_fit.py" in entry["source"], name)
+                                or "simulacrum/motor_heat_fit.py" in entry["source"]
+                                or "simulacrum/prox_fit.py" in entry["source"], name)
                 self.assertIn("low", entry, name)
 
     def test_every_assumed_entry_has_a_range_around_its_value(self) -> None:

@@ -1,0 +1,4 @@
+node_modules
+dist
+# never copy a locally fetched SDK model into an image by accident; see WITH_SDK_MODEL
+public/robot/sdk

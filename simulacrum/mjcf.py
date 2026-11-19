@@ -18,6 +18,9 @@ MM = 0.001
 GRAM = 0.001
 MAX_OBSTACLES = 16
 CLIFF_NAMES = ("front_left", "front_right", "back_left", "back_right")
+# The robot's own geoms are in this group and the scene's in group 0, so that the time-of-flight
+# sensor's rays (robot.py) can be cast at the scene alone. Contact does not use groups.
+ROBOT_GEOM_GROUP = 1
 
 
 def num(value: float) -> str:
@@ -144,7 +147,7 @@ def _wheel_xml(v: Dict[str, Any], name: str, x_mm: float, y_mm: float, radius_mm
         f'    <body name="{name}" pos="{vec((x_mm * MM, y_mm * MM, radius_mm * MM))}">\n'
         f'      <joint name="{name}_joint" type="hinge" axis="0 1 0" armature="{num(arm)}"{loss}/>\n'
         f'      <geom name="{name}_geom" type="cylinder" fromto="0 {num(-half_w)} 0 0 {num(half_w)} 0" '
-        f'size="{num(radius_mm * MM)}" mass="{num(mass)}" rgba="0.15 0.15 0.15 1" '
+        f'size="{num(radius_mm * MM)}" mass="{num(mass)}" rgba="0.15 0.15 0.15 1" group="{ROBOT_GEOM_GROUP}" '
         f'{_contact_attrs(v, v["tread_friction"])}/>\n'
         f'    </body>\n'
     )
@@ -176,7 +179,7 @@ def _head_xml(v: Dict[str, Any]) -> str:
         f'      <joint name="head_joint" type="hinge" axis="0 -1 0" range="{num(lo)} {num(hi)}" '
         f'armature="{num(arm)}"/>\n'
         f'      <geom name="head_geom" type="box" size="{vec((bx, by, bz))}" '
-        f'mass="{num(v["head_mass_g"] * GRAM)}" rgba="0.25 0.25 0.3 1" '
+        f'mass="{num(v["head_mass_g"] * GRAM)}" rgba="0.25 0.25 0.3 1" group="{ROBOT_GEOM_GROUP}" '
         f'{_contact_attrs(v, v["chassis_friction"])}/>\n'
         f'      <camera name="head_cam" pos="{vec([c * MM for c in cam])}" xyaxes="0 -1 0 0 0 1" '
         f'fovy="{num(v["camera_fov_vertical_deg"])}" resolution="{int(res[0])} {int(res[1])}"/>\n'
@@ -200,12 +203,12 @@ def _lift_xml(v: Dict[str, Any], d: Dict[str, Any]) -> str:
         f'range="{num(d["lift_angle_min"])} {num(d["lift_angle_max"])}" armature="{num(arm)}"/>\n'
         f'      <geom name="lift_arm_geom" type="box" pos="{vec((0.5 * arm_len, 0, 0))}" '
         f'size="{vec((0.5 * arm_len, half_w, 0.002))}" mass="{num(d["masses_g"]["arm"] * GRAM)}" '
-        f'contype="0" conaffinity="0" rgba="0.3 0.3 0.3 1"/>\n'
+        f'contype="0" conaffinity="0" rgba="0.3 0.3 0.3 1" group="{ROBOT_GEOM_GROUP}"/>\n'
         f'      <body name="lift_fork" pos="{vec((arm_len, 0, 0))}">\n'
         f'        <joint name="wrist_joint" type="hinge" axis="0 -1 0"/>\n'
         f'        <geom name="lift_fork_geom" type="box" pos="{vec((fx * MM, 0, fz * MM))}" '
         f'size="{vec((half_x, half_w, half_z))}" mass="{num(d["masses_g"]["fork"] * GRAM)}" '
-        f'rgba="0.3 0.3 0.3 1" {_contact_attrs(v, v["chassis_friction"])}/>\n'
+        f'rgba="0.3 0.3 0.3 1" group="{ROBOT_GEOM_GROUP}" {_contact_attrs(v, v["chassis_friction"])}/>\n'
         f'      </body>\n'
         f'    </body>\n'
     )
@@ -220,7 +223,8 @@ def _cliff_positions(v: Dict[str, Any]) -> List[Tuple[str, float, float]]:
 
 
 def _sites_xml(v: Dict[str, Any]) -> str:
-    """Range sensor sites on the chassis. A rangefinder looks along its site's +z axis."""
+    """Range sensor sites on the chassis. A cliff rangefinder looks along its site's +z axis; the
+    time-of-flight site gives that sensor's position and axis, and robot.py casts its cone of rays."""
     out = ""
     h = v["cliff_sensor_height_mm"] * MM
     assert h > 0.0, "cliff sensors must sit above the ground"
@@ -244,7 +248,7 @@ def _chassis_xml(v: Dict[str, Any], d: Dict[str, Any]) -> str:
         f'      <inertial pos="{vec([c * MM for c in d["chassis_com_mm"]])}" '
         f'mass="{num(d["masses_g"]["chassis"] * GRAM)}" diaginertia="{vec(d["chassis_inertia"])}"/>\n'
         f'      <geom name="chassis_geom" type="box" pos="{vec((v["chassis_center_x_mm"] * MM, 0, center_z))}" '
-        f'size="{vec(half)}" rgba="0.35 0.35 0.4 1" {_contact_attrs(v, v["chassis_friction"])}/>\n'
+        f'size="{vec(half)}" rgba="0.35 0.35 0.4 1" group="{ROBOT_GEOM_GROUP}" {_contact_attrs(v, v["chassis_friction"])}/>\n'
     )
 
 
@@ -297,9 +301,8 @@ def _sensors_xml(v: Dict[str, Any]) -> str:
     out = ""
     for name, _, _ in _cliff_positions(v):
         out += f'    <rangefinder name="cliff_{name}" site="cliff_{name}"/>\n'
-    out += '    <rangefinder name="tof" site="tof"/>\n'
     out += '    <gyro name="gyro" site="imu"/>\n    <accelerometer name="accel" site="imu"/>\n'
-    assert out.count("<rangefinder") == 5, "expected five range sensors"
+    assert out.count("<rangefinder") == 4, "expected four cliff range sensors"
     return out
 
 

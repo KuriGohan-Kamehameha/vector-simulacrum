@@ -384,9 +384,9 @@ class Signals(unittest.TestCase):
         self.assertEqual(module.STATE["abort"], "signal_%d" % signal.SIGHUP)
 
     def test_the_serial_comes_from_the_environment_and_is_checked(self) -> None:
-        with mock.patch.dict(os.environ, {"VECTOR_SERIAL": "0dd1cafe"}):
+        with mock.patch.dict(os.environ, {"VECTOR_SERIAL": "0a1b2c3d"}):
             module = _load_script(FakeRobot(FakeClock()), "/tmp/unused-lock")
-        self.assertEqual(module.SERIAL, "0dd1cafe")
+        self.assertEqual(module.SERIAL, "0a1b2c3d")
         with mock.patch.dict(os.environ, {"VECTOR_SERIAL": "not-hex!"}), self.assertRaises(AssertionError):
             _load_script(FakeRobot(FakeClock()), "/tmp/unused-lock")
 

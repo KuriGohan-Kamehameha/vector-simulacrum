@@ -1,7 +1,0 @@
-19:30:22.787     connection.Connection    INFO  Connecting to 192.0.2.130:443 for Vector-DEMO using /home/pi/.anki_vector/Vector-DEMO-0dd1cafe.cert
-19:30:29.168     connection.Connection    INFO  BehaviorControl control_granted_response { }
-19:33:36.950     connection.Connection    INFO  BehaviorControl control_lost_event { }
-19:33:36.952       util.MotorComponent    INFO  Delaying stop_all_motors until behavior control is granted
-19:33:38.288     connection.Connection    INFO  BehaviorControl control_granted_response { }
-19:33:38.507     connection.Connection    INFO  BehaviorControl control_lost_event { }
-19:33:38.761     connection.Connection    INFO  BehaviorControl control_granted_response { }

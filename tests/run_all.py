@@ -26,7 +26,7 @@ import _common  # noqa: E402
 
 MODULES = ("test_params", "test_mjcf", "test_drive", "test_recording", "test_imu_fit", "test_recorder", "test_sim",
            "test_replay", "test_task", "test_training", "test_rank", "test_mcp",
-           "test_wheelstand", "test_motor_heat")
+           "test_wheelstand", "test_motor_heat", "test_prox")
 EXIT_OK, EXIT_USAGE, EXIT_ENV, EXIT_RED = 0, 2, 3, 7
 
 

@@ -42,6 +42,7 @@ HW, TRX = "hardware/record_barriered.py", "test_recorder."
 IF, RK = "simulacrum/imu_fit.py", "rank_assumed.py"
 MS, TMC = "simulacrum/mcp_service.py", "test_mcp."
 WS, WC, TWS = "simulacrum/wheelstand.py", "wheelstand_check.py", "test_wheelstand."
+PX, TPX = "simulacrum/prox.py", "test_prox."
 TIF, TRK = "test_imu_fit.AccelerometerFit.", "test_rank."
 TD, TRC, TRP = "test_drive.", "test_recording.RecordingFiles.", "test_replay.Replay."
 TP, TM, TS, TT, TG = "test_params.", "test_mjcf.GeneratedModel.", "test_sim.", "test_task.", "test_training."
@@ -72,8 +73,7 @@ ARMS: Tuple[Tuple[str, str, str, str, Tuple[str, ...], bool], ...] = (
      '("front_left", fx, -y), ("front_right", fx, y)',
      (TM + "test_cliff_sensors_sit_where_the_table_says_in_manual_order",), False),
     ("forward range sensor not tilted", M, "vec((math.cos(tilt), 0.0, math.sin(tilt)))", "vec((1.0, 0.0, 0.0))",
-     (TM + "test_time_of_flight_site_is_tilted_up_by_the_table_angle",
-      TS + "RangeSensors.test_forward_range_reads_the_distance_the_geometry_gives"), True),
+     (TM + "test_time_of_flight_site_is_tilted_up_by_the_table_angle",), True),
     ("centre of mass ignores the moving parts", M,
      'com_x = (total * v["com_x_mm"] - sum(p[0] * p[1] for p in points)) / masses["chassis"]',
      'com_x = v["com_x_mm"]', (TS + "ModelLoads.test_compiled_mass_and_centre_of_mass_match_the_table",), True),
@@ -113,9 +113,25 @@ ARMS: Tuple[Tuple[str, str, str, str, Tuple[str, ...], bool], ...] = (
     ("reported wheel speed keeps its fraction", R,
      'out.append(whole_mmps(speed) if v["wheel_speed_reported_whole_mmps"] else speed)', "out.append(speed)",
      (TS + "Drive.test_wheel_speed_command_is_tracked_in_mm_per_s",), True),
-    ("forward range has no noise", R,
-     'dist = float(round(dist * (1.0 + self._noise.gauss(0.0, v["tof_range_std_fraction"]))))',
-     "dist = float(round(dist))", (TS + "RangeSensors.test_forward_range_scatters_by_the_table_fraction",), True),
+    ("forward range has no noise", PX, 'raw *= 1.0 + self._noise.gauss(0.0, v["tof_range_std_fraction"])', "raw *= 1.0",
+     (TS + "RangeSensors.test_forward_range_scatters_by_the_table_fraction",), True),
+    ("forward range sees the robot's own lift", R, "scene_only[0] = 1  #", "scene_only[0] = scene_only[1] = 1  #",
+     (TS + "RangeSensors.test_forward_range_reads_a_wall_that_fills_its_cone",), True),
+    ("signal quality ignores how much of the cone is filled", PX, "quality = total / len(self.rays)",
+     "quality = total / max(1, sum(1 for d in hits if d >= 0.0))",
+     (TPX + "Signal.test_quality_falls_with_distance_and_with_how_much_of_the_cone_is_filled",), False),
+    ("lift window ignored", PX, "        if in_beam:\n", "        if False:\n",
+     (TPX + "Reporting.test_the_lift_is_in_the_beam_between_two_heights_and_lingers",), False),
+    ("lift out of view at once", PX, "return self._clear_count < self._clear_needed", "return False",
+     (TPX + "Reporting.test_the_lift_is_in_the_beam_between_two_heights_and_lingers",), False),
+    ("pitch does not stop an object being found", PX, "and -limit <= pitch_rad <= limit)", "and True)",
+     (TPX + "Reporting.test_nothing_is_found_while_the_robot_is_pitched",), False),
+    ("reported distance not clamped at the top", PX,
+     'distance = float(round(min(max(raw, v["tof_report_min_mm"]), v["tof_report_max_mm"])))',
+     'distance = float(round(max(raw, v["tof_report_min_mm"])))',
+     (TPX + "Reporting.test_the_distance_is_clamped_to_the_engines_limits",), False),
+    ("weak reading reports no distance", PX, 'raw = self._noise.gauss(v["tof_weak_distance_mm"], v["tof_weak_distance_sd_mm"])',
+     'raw = v["tof_report_max_mm"]', (TPX + "Signal.test_a_few_far_hits_are_too_weak_to_count",), False),
     ("gyro bias dropped", R, ' + math.radians(v["gyro_bias_dps"][i])', "",
      (TS + "RangeSensors.test_gyro_and_accelerometer_carry_the_table_noise_and_bias",), True),
     ("sensor noise ignores its seed", R, "self._noise = random.Random(noise_seed)", "self._noise = random.Random()",
@@ -184,6 +200,12 @@ ARMS: Tuple[Tuple[str, str, str, str, Tuple[str, ...], bool], ...] = (
     ("heat fit keeps spins a hazard ended", "simulacrum/motor_heat_fit.py",
      '        if stops[0].get("why") != "segment_end":\n            continue', '        if False:\n            continue',
      ("test_motor_heat.ConstructedRun.test_spins_ended_by_a_hazard_are_left_out",), False),
+    ("vector 2 inherits measurements unmarked", "simulacrum/params.py",
+     '            params[name] = dict(entry, inherited=variant["inherited_note"])', "            params[name] = entry",
+     ("test_params.Vector2.test_it_replaces_only_what_it_names_and_marks_inherited_measurements",), False),
+    ("vector 2 accepts overrides of unknown entries", "simulacrum/params.py",
+     '        raise ValueError(f"variant overrides names the base table lacks: {unknown}")', "        pass",
+     ("test_params.Vector2.test_a_variant_naming_an_unknown_entry_is_refused",), False),
     ("head and lift jump to full speed, no ramp", R,
      "    rate = min(cap, rate + accel * dt, math.sqrt(2.0 * accel * remaining))\n",
      "    rate = min(cap, math.sqrt(2.0 * accel * remaining))\n",
@@ -220,10 +242,10 @@ ARMS: Tuple[Tuple[str, str, str, str, Tuple[str, ...], bool], ...] = (
      (TRX + "Safety.test_losing_control_ends_the_run",), False),
     ("next recording: state rows drop the image time stamp", HW, ", img_ts=m.last_image_time_stamp)", ")",
      (TRX + "Rows.test_state_rows_carry_what_the_replay_reads_and_the_image_time",), False),
-    ("forward range accepts readings below its minimum", R,
-     'found = raw >= 0.0 and v["tof_range_min_mm"] <= dist <= v["tof_range_max_mm"]',
-     'found = raw >= 0.0 and dist <= v["tof_range_max_mm"]',
-     (TS + "RangeSensors.test_forward_range_closer_than_the_usable_minimum_finds_nothing",), True),
+    ("reported distance not clamped at the bottom", PX,
+     'distance = float(round(min(max(raw, v["tof_report_min_mm"]), v["tof_report_max_mm"])))',
+     'distance = float(round(min(raw, v["tof_report_max_mm"])))',
+     (TS + "RangeSensors.test_forward_range_never_reports_below_its_minimum",), True),
     ("start pose depends on the clock", R, "start_xy_mm[1] * mjcf.MM, 0.0",
      'start_xy_mm[1] * mjcf.MM, 1e-9 * (__import__("time").perf_counter_ns() % 997)',
      (TS + "Determinism.test_nominal_runs_repeat_exactly_including_a_fall",), True),
@@ -406,7 +428,7 @@ NEUTRAL = ("docstring reworded", R, '"""A simulated Vector on a table. One insta
 
 def _copy_tree(parent: Path, label: str) -> Path:
     dest = parent / label
-    shutil.copytree(ROOT, dest, ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
+    shutil.copytree(ROOT, dest, ignore=shutil.ignore_patterns("__pycache__", ".DS_Store", "node_modules", "dist"))
     assert (dest / "tests" / "run_all.py").is_file(), "copy is missing the test runner"
     assert (dest / "parameters.json").is_file(), "copy is missing the parameter table"
     return dest

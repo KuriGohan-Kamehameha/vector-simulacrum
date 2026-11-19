@@ -1,0 +1,28 @@
+{
+  "name": "vector-sim-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MPL-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.js\"",
+    "mutate": "node test/mutate.mjs",
+    "check": "python3 tools/export_model.py --check",
+    "export": "python3 tools/export_model.py",
+    "sdk-model": "python3 tools/fetch_sdk_model.py"
+  },
+  "dependencies": {
+    "@mujoco/mujoco": "4.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.164.1",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.0",
+    "vite": "^8.2.2"
+  }
+}

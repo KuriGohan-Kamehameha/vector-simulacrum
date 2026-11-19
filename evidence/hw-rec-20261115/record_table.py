@@ -22,7 +22,7 @@ from anki_vector.connection import ControlPriorityLevel
 from anki_vector.events import Events
 from anki_vector.util import degrees
 
-SERIAL = os.environ.get("VECTOR_SERIAL", "00000000")
+SERIAL = "00000000"  # set to your robot's serial number
 LOCK = "/tmp/vector-%s-takeover.lock" % SERIAL
 POLL_S = 0.02
 OUT_LOCK = threading.Lock()

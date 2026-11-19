@@ -16,8 +16,8 @@ part of it.** One robot, one run of 162 s, one surface, one battery charge
 (4.10 V falling to 3.96 V), wheel speeds up to 100 mm/s. Nothing here says
 anything about another robot, another surface, or faster driving.
 
-Of 145 parameters: 10 are measured on the recordings, 12 are fitted to them, 17
-come from the manual, 76 from vendor or household software, 23 are still
+Of 160 parameters: 10 are measured on the recordings, 18 are fitted to them, 17
+come from the manual, 85 from vendor or household software, 23 are still
 assumed about the robot, and 7 are settings of the scene and the solver that
 have no real value to find. On the segments the fit never saw, the model's
 wheel speed and gyro error fell from 0.33 of each segment's scale (the
@@ -36,6 +36,8 @@ most sensitive to, by a wide margin ("The assumed values, ranked" below).
 | `simulacrum/drive.py` | The firmware's tread encoder arithmetic and speed control law |
 | `simulacrum/robot.py` | `VectorSim`: SDK-shaped commands and state, sensor noise, cliff reaction |
 | `simulacrum/hazards.py` | Cliff, falling and picked-up flags |
+| `simulacrum/prox.py` | The forward time-of-flight sensor: its cone, signal quality, and the robot's reporting rules. No MuJoCo |
+| `simulacrum/prox_fit.py` | Recomputes that sensor's fitted values from the recordings. No MuJoCo |
 | `simulacrum/recording.py` | Reads the recording of the real robot and measures it. No MuJoCo |
 | `simulacrum/imu_fit.py` | Fits the accelerometer's steady offsets and the pitch of its frame from the recording. No MuJoCo |
 | `simulacrum/wheelstand.py`, `wheelstand_check.py` | The centre of mass from balance angles on the rear wheels and on one tread edge, read by the robot's own accelerometer; the check that the model tips where the formula says (MuJoCo) |
@@ -52,7 +54,7 @@ most sensitive to, by a wide margin ("The assumed values, ranked" below).
 | `evidence/hw-rec-20261115/` | The recording, the script that made it, SHA-256 in the table's `REC` source |
 | `evidence/` | Smoke run learning curves and outputs; the fit, replay, measurement, ranking and fault-check outputs; the hardware findings the third version started from; the conferral with GPTPCS-Astra |
 | `hardware/record_barriered.py` | The recorder for the next recording. **Not run yet.** Written by cpcs-5f62f24, who holds the robot; nothing here runs it against one |
-| `tests/` | `run_all.py`, thirteen test files, `mutate.py` |
+| `tests/` | `run_all.py`, fifteen test files, `mutate.py` |
 | `run_in_ct.sh` | Copies this directory into CT 930 and runs a file there |
 | `mcp_server.py`, `simulacrum/mcp_service.py` | An MCP server over stdio: the table, the recordings and the recorder's command line as tools. Read-only; no robot, no MuJoCo |
 
@@ -93,6 +95,52 @@ Keep to at most four worker processes and short runs in CT 930: the node is
 a shared hypervisor. One process runs about 9 times real time. Do not start
 a second `run_in_ct.sh` while one is running: each run replaces the copy in
 the container.
+
+## The range sensor
+
+The forward time-of-flight sensor follows the real robot in three ways the
+single ray it replaced did not.
+
+**It sees a cone.** 25 degrees across (the firmware's own figure), sampled by
+a fan of 19 rays: one on the axis, 6 at half the half-angle, 12 at 0.9 of it.
+The rays are cast at the scene only. The robot's own lift is a box in this
+model and would block the sensor where the real fork does not, so the lift is
+handled by the robot's own rule instead (below).
+
+**It reports what the robot's engine reports** (`proxSensorComponent.cpp`,
+source `ENGPROX`):
+
+| | Rule | Recordings |
+|---|---|---|
+| Distance | Clamped to 30..400 mm | Lowest 30, highest 400 in 9929 rows |
+| Lift in view | Lift height between 34 and 56 mm, and for 90 ms after it leaves | 111 of the 205 rows in that window read 30 mm, with signal quality about 12 |
+| Unobstructed | Signal quality at or below 0.01, or distance at 400 | 4713 of 9929 rows have quality at or below 0.01 |
+| Found object | Not unobstructed, lift not in view, pitch within 5 degrees | |
+
+The state message carries `prox_distance_mm`, `prox_signal_quality`,
+`prox_unobstructed`, `prox_found_object` and `prox_is_lift_in_fov`.
+
+**Its signal is fitted to the recordings** (`python3 -m simulacrum.prox_fit`).
+Signal quality falls with distance as a power law: 0.139 at 100 mm, exponent
+-2.71, from the 4776 rows with a usable signal. Quality is the mean over the
+fan, so a target that fills half the cone returns half the signal, and the
+distance is the signal-weighted mean of the hits. With that law a target
+filling the cone drops to the 0.01 threshold at about 264 mm, which agrees
+with the manual's "max useful range closer to 300 mm".
+
+With no usable signal the real sensor still reports a distance: median 69 mm,
+quartiles 56 and 86, quality about 0.0034. The model reports the same, because
+a policy trained here will meet it on the robot. On an open table the fan's
+three lowest rays reach the table top between 193 and 281 mm; that is too
+little signal to count, so the open table reads as clear, as it does on the
+robot.
+
+Limits. One robot, and whatever stood in front of it: the scatter about the
+signal law is more than a factor of ten. What produces the weak readings'
+distance is not established. The weak distance is drawn from a normal
+distribution, which leaves out the real tails (6% of weak rows read 30, 3%
+read 400). `task.py` still scales the distance by the sensor's 1200 mm range,
+not by the 400 mm the robot reports.
 
 ## The MCP server
 
@@ -271,9 +319,42 @@ pointing to the end of the assumed range, is not enough to change a value:
 `com_x_mm` stays -24 and assumed. The rear wheelstand decides it: -24
 predicts a balance at 64.9 degrees, -29 at 59.4.
 
+### Vector 2.0: a separate set (2026-11-18)
+
+`parameters-vector2.json` holds the entries where Digital Dream Labs'
+Vector 2.0 is known or suspected to differ; everything else is inherited from
+`parameters.json`. Load it with `params.load(model="vector_2")`, or set
+`VECTOR_MODEL=vector_2` for every tool at once (the MCP `parameters` tool
+takes `model`).
+
+What is known to differ, with sources: the display (160x80 against 184x96,
+DDL's boot display code), the camera (a 1600x1200 sensor), and the battery
+(a new cell in a removable compartment, "up to 30 % longer runtime"). One
+community page says the board, IMU, distance and cliff sensors, motors and
+gearboxes are the same. No source gives 2.0's mass, dimensions or wheel
+geometry. So the 2.0 set replaces seven entries:
+
+| Entry | 1.0 | 2.0 | Why |
+|---|---|---|---|
+| `display_resolution_px` | 184x96 | 160x80 | Sourced |
+| `battery_capacity_mah` | 320 | 416 assumed (320-600) | 320 x 1.3 from DDL's runtime claim; 600 from one unconfirmed listing |
+| `total_mass_g` | 170 (150-185) | 170 (150-200) | New battery and compartment; range widened |
+| `com_x_mm`, `com_z_mm` | -24 (-30..-14), 22 (15..30) | same, ranges 3 mm wider | The battery is the heaviest part whose place is not known |
+| `camera_fov_horizontal_deg` | 90 | 90 assumed (90-120) | One aggregator says 120 |
+| `camera_fov_vertical_deg` | 50 | 50 assumed (50-90) | 4:3 sensor; how 2.0 crops it is not known |
+
+The 22 measured and fitted values (tread drive, servo timing, IMU offsets,
+heat) come from unit 1, a Vector 1.0. In the 2.0
+set each carries `inherited`, so it cannot pass for a 2.0 measurement. Of the
+household's other two units, unit 2 is a 1.0 and unit 3 a 2.0; a
+sustained-load run on unit 3 is the first measurement the
+2.0 set can carry. The robot's factory record says which it is: HW_VER at offset 4
+of `/dev/mmcblk0p29`, 0x20 or above for 2.0. On the body, 1.0 prints "S/N"
+near the top of the track, 2.0 an "ESN" underneath.
+
 ### Battery, heat and the top speed (2026-11-18)
 
-Operator: "simulate voltage sag and other factors that affect motor
+The operator: "simulate voltage sag and other factors that affect motor
 efficacy/responsiveness ... from real sustained-load tests on multiple units".
 What one unit so far gives:
 
@@ -316,8 +397,8 @@ initial rate, 0.13 to 0.34 %/s; those are the ranges training draws from.
 The model reproduces the right tread's fall under the same schedule within
 the test's +/-50 % (`tests/test_motor_heat.py`).
 
-**Not yet met.** "Multiple units": only 0dd1cafe has been run; 0dd1beef and
-0dd1dead were offline. A run to the plateau (the full 600 s or more, away
+**Not yet met.** "Multiple units": only one unit has been run; the other two
+were offline. A run to the plateau (the full 600 s or more, away
 from edges) would pin the heat's time constant. The SDK cannot see motor
 temperature, so heat is an inference from one tread falling while the other
 holds.
@@ -696,9 +777,9 @@ the firmware disagreements.
   fitted rate, and their own command delay. Reported in whole encoder counts
   (0.123 and 0.301 degrees). The servo gains are still assumed.
 - **Sensors.** Four downward range sensors at the cliff sensor positions,
-  in the manual's order. One forward range sensor at the time-of-flight
-  position, tilted up 6.5 degrees, valid from 30 to 1200 mm, reported in
-  whole mm with noise of 2.2% of the distance. Gyro and accelerometer at the
+  in the manual's order. One forward time-of-flight sensor, tilted up 6.5
+  degrees, with its 25 degree cone and the robot's own reporting rules (see
+  "The range sensor" below). Gyro and accelerometer at the
   IMU position in the head and in the head's frame, pitched by the fitted
   `imu_pitch_offset_deg`, with the noise measured at rest, the gyro's
   measured residual offset and the accelerometer's fitted offsets. A turn
@@ -743,8 +824,9 @@ the firmware disagreements.
 - A task built on `mjlab`'s own task classes (see Training below for why).
 - Any connection to the Go gRPC simulator.
 - Odometry error. The reported pose is the true pose.
-- The time-of-flight field of view (25 degrees): one ray is cast, as in the
-  vendor's Webots model. `is_lift_in_fov` is set from lift height alone.
+- What the range sensor's target is made of, and how it is turned to the
+  sensor: the signal depends on distance and on how much of the cone is filled
+  only. A carried cube in the beam. The sensor's `rangeStatus`.
 - Cliff sensing by brightness. Here a cliff is a range beyond
   `cliff_detect_range_mm`.
 - The firmware's pick-up detection from gyro and accelerometer motion. Here
@@ -1188,7 +1270,7 @@ between axes would not, and that is not known either.
 
 ### Against the hardware: the run when the robot is back
 
-Operator go, 2026-11-18: when the robot is back within reach of its cube, this
+The operator's go, 2026-11-18: when the robot is back within reach of its cube, this
 lane runs the recorder itself on the wire-pod host and adjusts the table.
 The order, each a separate run of `hardware/record_barriered.py`:
 

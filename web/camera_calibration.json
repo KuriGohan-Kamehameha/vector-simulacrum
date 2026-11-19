@@ -1,0 +1,14 @@
+{
+ "what": "Factory camera calibration of one production Vector, as the robot itself reports it through the SDK (CameraConfig) for its 640 x 360 image",
+ "read": "Read live from the robot by a household session and recorded on or before 2026-11-13 (vector-slam-maze README, v0.2.0 passive verification). A re-read was tried on 2026-11-18 and the robot was off the network.",
+ "width_px": 640,
+ "height_px": 360,
+ "fx_px": 361.1599,
+ "fy_px": 356.2424,
+ "cx_px": 310.661,
+ "cy_px": 183.827,
+ "reported_fov_x_deg": 83.084,
+ "reported_fov_y_deg": 53.613,
+ "distortion": null,
+ "limits": "One robot; calibration varies from unit to unit. Lens distortion coefficients are in the robot's logs, not in the SDK message, and are not here: the view is drawn as an undistorted pinhole."
+}

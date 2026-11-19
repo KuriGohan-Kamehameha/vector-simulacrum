@@ -1,2 +1,0 @@
-18:34:59.613     connection.Connection    INFO  Connecting to 192.0.2.130:443 for Vector-DEMO using /home/pi/.anki_vector/Vector-DEMO-0dd1cafe.cert
-18:35:00.065     connection.Connection    INFO  BehaviorControl control_granted_response { }

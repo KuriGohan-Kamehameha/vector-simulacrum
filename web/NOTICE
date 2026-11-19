@@ -1,0 +1,20 @@
+Vector simulacrum, browser front end
+Copyright (c) 2026 PiSCES - The Piranesi-Satraj Composite Expert System.
+
+Code in this directory is licensed under the Mozilla Public License 2.0, and
+its documents under CC BY 4.0, as the rest of this repository.
+
+Structure after the MicroDuck simulator by Pollen Robotics
+(https://huggingface.co/spaces/pollen-robotics/microduck-simulator, Apache-2.0).
+No code or assets from it are included.
+
+Runs on MuJoCo (Apache-2.0, Google DeepMind) through the @mujoco/mujoco
+WebAssembly bindings, three.js (MIT), React (MIT) and zustand (MIT), installed
+by npm and not included here.
+
+The robot's 3D model is NOT included and is NOT covered by the licences above.
+tools/fetch_sdk_model.py copies it from the Vector Python SDK
+(anki_vector/opengl/assets). It is licensed by Anki, Inc. under the Anki Image
+and 3D Model License Agreement, version 1.1; the copy carries that licence
+text beside it. The part grouping and pivots used to pose it are taken from
+anki_vector/opengl/opengl_vector.py (Apache-2.0).

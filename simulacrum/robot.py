@@ -26,10 +26,12 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import mujoco
+import numpy as np
 
 from . import mjcf, params
 from .drive import TreadController, TreadEncoder, whole_mmps
 from .hazards import Hazards
+from .prox import ProxReading, ProxSensor
 
 CONTROL_DEFAULT = "default"
 CONTROL_OVERRIDE = "override"
@@ -66,6 +68,8 @@ class RobotState:
     falling: bool
     wheels_moving: bool
     has_control: bool
+    prox_signal_quality: float = 0.0
+    prox_unobstructed: bool = True
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,9 @@ class VectorSim:
         assert isinstance(noise_seed, int), "noise seed must be an int"
         self._noise = random.Random(noise_seed)
         self.v = dict(values) if values is not None else params.values(params.load())
+        # The time-of-flight sensor draws from its own stream, so its readings do not move the IMU's noise.
+        self._prox_sensor = ProxSensor(self.v, noise_seed + 1)
+        self._tof_hits_mm: List[float] = []
         self.d = mjcf.derive(self.v)
         self.control_level = control_level
         self.dt = self.v["control_period_ms"] * 0.001
@@ -138,7 +145,13 @@ class VectorSim:
         joint = lambda name: mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)
         act = lambda name: mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
         self._cliff_adr = [sensor("cliff_" + name) for name in mjcf.CLIFF_NAMES]
-        self._tof_adr, self._gyro_adr, self._accel_adr = sensor("tof"), sensor("gyro"), sensor("accel")
+        self._gyro_adr, self._accel_adr = sensor("gyro"), sensor("accel")
+        self._tof_site = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, "tof")
+        assert self._tof_site >= 0, "time-of-flight site missing from the model"
+        scene_only = [0] * 6
+        scene_only[0] = 1  # group 0 is the scene; the robot's own geoms are in mjcf.ROBOT_GEOM_GROUP
+        assert mjcf.ROBOT_GEOM_GROUP != 0, "the robot's geoms must not share the scene's group"
+        self._scene_only = np.array(scene_only, dtype=np.uint8)
         self._q = {n: int(m.jnt_qposadr[joint(n + "_joint")]) for n in ("head", "lift", "wrist")}
         self._dof = {n: int(m.jnt_dofadr[joint(n + "_joint")]) for n in ("wheel_fl", "wheel_fr", "head", "lift")}
         self._wheel_q = [int(m.jnt_qposadr[joint(n + "_joint")]) for n in ("wheel_fl", "wheel_fr")]
@@ -277,15 +290,24 @@ class VectorSim:
         assert len(out) == 4, "four cliff sensors"
         return [r / mjcf.MM if r >= 0.0 else -1.0 for r in out]
 
-    def _prox(self) -> Tuple[float, bool]:
-        """Forward range in whole mm, with noise proportional to distance, and whether it is usable."""
-        v = self.v
-        raw = float(self.data.sensordata[self._tof_adr])
-        dist = raw / mjcf.MM if raw >= 0.0 else v["tof_range_max_mm"]
-        if raw >= 0.0:
-            dist = float(round(dist * (1.0 + self._noise.gauss(0.0, v["tof_range_std_fraction"]))))
-        found = raw >= 0.0 and v["tof_range_min_mm"] <= dist <= v["tof_range_max_mm"]
-        return _clamp(dist, 0.0, v["tof_range_max_mm"]), found
+    def _cast_tof(self) -> List[float]:
+        """Cast the sensor's fan of rays at the scene (not at the robot itself).
+        Per ray: the distance in mm to what it hit, or -1 for nothing."""
+        origin = np.array(self.data.site_xpos[self._tof_site], dtype=float)
+        frame = np.array(self.data.site_xmat[self._tof_site], dtype=float).reshape(3, 3)
+        geom_id = np.zeros(1, dtype=np.int32)
+        hits: List[float] = []
+        for local in self._prox_sensor.rays:
+            dist = float(mujoco.mj_ray(self.model, self.data, origin, frame @ np.array(local), self._scene_only, 1, -1, geom_id))
+            hits.append(dist / mjcf.MM if dist >= 0.0 else -1.0)
+        self._tof_hits_mm = list(hits)
+        assert len(hits) == len(self._prox_sensor.rays), "one hit per ray of the fan"
+        return hits
+
+    def _prox(self) -> ProxReading:
+        """What the time-of-flight sensor reports now (simulacrum/prox.py), from the lift height the robot reports."""
+        lift_mm = self._reported_head_and_lift()[1]
+        return self._prox_sensor.read(self._cast_tof(), lift_mm, self._pitch())
 
     def _sample_imu(self) -> None:
         """Read gyro and accelerometer once, add this robot's bias and noise, clip to the part's range."""
@@ -334,15 +356,16 @@ class VectorSim:
     def _publish_state(self) -> None:
         x, y, z = self.pose_mm()
         left, right = self._reported_wheel_speeds()
-        dist, found = self._prox()
+        prox = self._prox()
         accel, gyro = self._imu()
         head, lift = self._reported_head_and_lift()
         moving = (abs(left) + abs(right)) > self.v["wheel_stopped_threshold_mmps"]
         self.state = RobotState(
             time_s=self.tick * self.dt, x_mm=x, y_mm=y, z_mm=z, pose_angle_rad=self._yaw(),
             pose_pitch_rad=self._pitch(), left_wheel_speed_mmps=left, right_wheel_speed_mmps=right,
-            head_angle_rad=head, lift_height_mm=lift, prox_distance_mm=dist,
-            prox_found_object=found, prox_is_lift_in_fov=lift < self.v["lift_height_above_prox_mm"],
+            head_angle_rad=head, lift_height_mm=lift, prox_distance_mm=prox.distance_mm,
+            prox_found_object=prox.found_object, prox_is_lift_in_fov=prox.is_lift_in_fov,
+            prox_signal_quality=prox.signal_quality, prox_unobstructed=prox.unobstructed,
             accel_mmps2=accel, gyro_radps=gyro, cliff_detected=self.hazards.cliff_any,
             picked_up=self.hazards.picked_up, falling=self.hazards.falling, wheels_moving=moving,
             has_control=self.has_control)
@@ -357,7 +380,8 @@ class VectorSim:
         return {"fallen": z < -v["table_thickness_mm"], "edge_margin_mm": margin, "z_mm": z,
                 "cliff_flags": list(self.hazards.cliff), "wheel_speeds_mmps": self._wheel_speeds(),
                 "encoder_counts": (self._encoders[0].counts, self._encoders[1].counts),
-                "motor_power": (self._controllers[0].power, self._controllers[1].power)}
+                "motor_power": (self._controllers[0].power, self._controllers[1].power),
+                "tof_hits_mm": list(self._tof_hits_mm)}
 
     # ---- the control tick -----------------------------------------------
 

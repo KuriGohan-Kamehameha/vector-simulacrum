@@ -34,7 +34,7 @@ class GeneratedModel(unittest.TestCase):
             _find(self.root, "general", actuator)
         for actuator in ("head", "lift"):
             _find(self.root, "position", actuator)
-        self.assertEqual(len(list(self.root.iter("rangefinder"))), 5)
+        self.assertEqual(len(list(self.root.iter("rangefinder"))), 4)
         self.assertEqual(len(list(self.root.iter("gyro"))), 1)
         self.assertEqual(len(list(self.root.iter("accelerometer"))), 1)
         _find(self.root, "camera", "head_cam")
@@ -56,7 +56,8 @@ class GeneratedModel(unittest.TestCase):
             "drive_done_mm", "wheel_speed_max_mmps", "servo_command_delay_ms", "head_speed_max_radps",
             "lift_speed_max_radps", "cliff_reaction_pause_ms", "gyro_noise_rms_dps", "gyro_bias_dps", "accel_noise_rms_mg", "accel_bias_mg",
             "tof_range_std_fraction", "battery_sag_v_per_power", "motor_reference_voltage_v",
-            "tread_heat_tau_s", "tread_heat_loss_rate_per_s"}
+            "tread_heat_tau_s", "tread_heat_loss_rate_per_s", "tof_quality_at_100mm", "tof_quality_distance_exponent",
+            "tof_quality_floor", "tof_weak_distance_mm", "tof_weak_distance_sd_mm", "tof_lift_quality"}
         base = mjcf.build_mjcf(self.v)
         unchanged = []
         for name, entry in self.doc["parameters"].items():

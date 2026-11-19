@@ -30,7 +30,7 @@ CLIFF_TABLE_TOL_MM = 0.3
 CLIFF_EDGE_TOL_MM = 3.0
 TOF_TOL_MM = 0.3
 EDGE_START_MM = 150.0
-QUIET = {"tof_range_std_fraction": 0.0, "gyro_noise_rms_dps": 0.0, "accel_noise_rms_mg": 0.0}
+QUIET = {"tof_range_std_fraction": 0.0, "tof_weak_distance_sd_mm": 0.0, "gyro_noise_rms_dps": 0.0, "accel_noise_rms_mg": 0.0}
 WALL = (150.0, 0.0, 50.0, 10.0, 200.0, 100.0)  # centre and size in mm: face at x = 145
 
 
@@ -57,7 +57,7 @@ class ModelLoads(unittest.TestCase):
     def test_model_compiles_with_the_expected_shape(self) -> None:
         sim = VectorSim()
         self.assertEqual(sim.model.nu, 4)
-        self.assertEqual(sim.model.nsensor, 7)
+        self.assertEqual(sim.model.nsensor, 6)
         self.assertEqual(sim.model.nq, 7 + 4 + 3)
         self.assertEqual(sim.model.ncam, 1)
 
@@ -87,6 +87,20 @@ class ModelLoads(unittest.TestCase):
         self.assertAlmostEqual(state.accel_mmps2[2], sim.v["gravity_mmps2"] + z_offset, delta=100.0)
         self.assertFalse(state.cliff_detected or state.picked_up or state.falling or state.wheels_moving)
         self.assertTrue(state.has_control)
+
+
+@unittest.skipUnless(_common.HAVE_MUJOCO, _common.SKIP_REASON)
+class Vector2(unittest.TestCase):
+    def test_the_2_0_set_and_drawn_2_0_robots_build_settle_and_spin(self) -> None:
+        doc = params.load(model="vector_2")
+        for values in (params.values(doc), params.sample(doc, 3), params.sample(doc, 4)):
+            sim = VectorSim(values=values)
+            sim.advance(0.5)
+            z0 = sim.pose_mm()[2]
+            sim.set_wheel_motors(-100.0, 100.0)
+            sim.advance(2.0)
+            self.assertGreater(abs(math.degrees(sim.state.pose_angle_rad)), 20.0, "it turned")
+            self.assertLess(abs(sim.pose_mm()[2] - z0), 3.0, "it stayed on its treads")
 
 
 @unittest.skipUnless(_common.HAVE_MUJOCO, _common.SKIP_REASON)
@@ -262,7 +276,7 @@ class Servos(unittest.TestCase):
         self.assertEqual(sim.set_lift_height(5.0).result, robot.RESULT_COMPLETED)
         sim.advance(0.5)
         self.assertAlmostEqual(sim.lift_height_mm(), sim.v["lift_height_min_mm"], delta=1.0)
-        self.assertTrue(sim.state.prox_is_lift_in_fov)
+        self.assertFalse(sim.state.prox_is_lift_in_fov, "fully down, the lift is below the beam")
 
     def test_reported_lift_height_is_the_height_of_the_wrist(self) -> None:
         sim = VectorSim()
@@ -309,23 +323,53 @@ class RangeSensors(unittest.TestCase):
         sim.step(sim._state_ticks)
         self.assertTrue(sim.state.cliff_detected, "one status bit covers all four sensors")
 
-    def test_forward_range_reads_the_distance_the_geometry_gives(self) -> None:
+    def test_forward_range_reads_a_wall_that_fills_its_cone(self) -> None:
         sim = _quiet_sim(obstacles=[WALL])
         state = sim.advance(0.2)
         v = sim.v
         face_x = WALL[0] - 0.5 * WALL[3]
-        expected = (face_x - v["tof_position_mm"][0]) / math.cos(math.radians(v["tof_tilt_up_deg"]))
-        self.assertAlmostEqual(state.prox_distance_mm, round(expected), delta=TOF_TOL_MM)
+        on_axis = (face_x - v["tof_position_mm"][0]) / math.cos(math.radians(v["tof_tilt_up_deg"]))
+        hits = sim.sim_truth()["tof_hits_mm"]
+        self.assertEqual(len(hits), 19)
+        self.assertTrue(all(h > 0.0 for h in hits), "every ray of the fan lands on the wall")
+        self.assertAlmostEqual(hits[0], on_axis, delta=TOF_TOL_MM)
+        self.assertTrue(min(hits) <= state.prox_distance_mm <= max(hits) + 1.0)
+        self.assertAlmostEqual(state.prox_distance_mm, on_axis, delta=4.0)
         self.assertEqual(state.prox_distance_mm, int(state.prox_distance_mm), "reported in whole mm")
+        self.assertGreater(state.prox_signal_quality, v["tof_quality_min"])
         self.assertTrue(state.prox_found_object)
+        self.assertFalse(state.prox_unobstructed)
 
     def test_forward_range_scatters_by_the_table_fraction(self) -> None:
+        quiet = _quiet_sim(obstacles=[WALL]).advance(0.2).prox_distance_mm
         sim = VectorSim(obstacles=[WALL])
         readings = [sim.step(sim._state_ticks).prox_distance_mm for _ in range(300)]
         mean = sum(readings) / len(readings)
         spread = math.sqrt(sum((r - mean) ** 2 for r in readings) / len(readings))
-        self.assertAlmostEqual(mean, 135.87, delta=1.5)
+        self.assertAlmostEqual(mean, quiet, delta=1.5)
         self.assertAlmostEqual(spread / mean, sim.v["tof_range_std_fraction"], delta=0.008)
+
+    def test_the_lift_in_the_beam_reads_the_minimum_and_hides_what_is_behind_it(self) -> None:
+        v = params.values(params.load(), QUIET)
+        blocked = VectorSim(values=v, obstacles=[WALL], lift_mm=45.0).advance(0.2)
+        self.assertTrue(blocked.prox_is_lift_in_fov)
+        self.assertEqual(blocked.prox_distance_mm, v["tof_report_min_mm"])
+        self.assertEqual(blocked.prox_signal_quality, v["tof_lift_quality"])
+        self.assertFalse(blocked.prox_found_object, "the lift is not an object found")
+        for height in (v["lift_height_min_mm"], 80.0):
+            clear = VectorSim(values=v, obstacles=[WALL], lift_mm=height).advance(0.2)
+            self.assertFalse(clear.prox_is_lift_in_fov, f"lift at {height} mm")
+            self.assertTrue(clear.prox_found_object, f"lift at {height} mm")
+
+    def test_the_lift_counts_as_in_view_for_a_moment_after_it_leaves_the_beam(self) -> None:
+        sim = _quiet_sim(lift_mm=45.0)
+        self.assertTrue(sim.advance(0.2).prox_is_lift_in_fov)
+        self.assertEqual(sim.set_lift_height(92.0).result, robot.RESULT_COMPLETED)
+        sim.advance(0.3)
+        states = list(sim.states)
+        last_in = max(i for i, s in enumerate(states) if s.lift_height_mm <= sim.v["tof_lift_occluding_max_mm"])
+        self.assertTrue(states[last_in + 1].prox_is_lift_in_fov, "still in view in the first message after it left")
+        self.assertFalse(states[last_in + 2].prox_is_lift_in_fov, "and out by the second")
 
     def test_gyro_and_accelerometer_carry_the_table_noise_and_bias(self) -> None:
         biased = params.values(params.load(), {"gyro_bias_dps": [0.3, 0.0, 0.0], "accel_bias_mg": [0.0, 30.0, 0.0]})
@@ -379,16 +423,33 @@ class RangeSensors(unittest.TestCase):
         tilted = self._gyro_pitch_in_a_spin_deg(0.0, -5.0)
         self.assertAlmostEqual(tilted - level, -5.0, delta=0.3)
 
-    def test_forward_range_with_nothing_ahead_finds_nothing(self) -> None:
-        state = VectorSim().advance(0.2)
-        self.assertFalse(state.prox_found_object)
-        self.assertEqual(state.prox_distance_mm, params.values(params.load())["tof_range_max_mm"])
+    def test_forward_range_with_nothing_ahead_reports_a_weak_reading(self) -> None:
+        sim = _quiet_sim()
+        state = sim.advance(0.2)
+        v = sim.v
+        grazes = [h for h in sim.sim_truth()["tof_hits_mm"] if h >= 0.0]
+        self.assertTrue(grazes and min(grazes) > 150.0, "the lowest rays reach the table top, far ahead and at a slant")
+        self.assertFalse(state.prox_found_object, "the table top is not an object found")
+        self.assertTrue(state.prox_unobstructed)
+        self.assertEqual(state.prox_signal_quality, v["tof_quality_floor"])
+        self.assertEqual(state.prox_distance_mm, v["tof_weak_distance_mm"], "the real sensor still reports a distance")
 
-    def test_forward_range_closer_than_the_usable_minimum_finds_nothing(self) -> None:
-        near = (35.0, 0.0, 50.0, 10.0, 200.0, 100.0)
-        state = _quiet_sim(obstacles=[near]).advance(0.05)
-        self.assertLess(state.prox_distance_mm, params.values(params.load())["tof_range_min_mm"])
-        self.assertFalse(state.prox_found_object)
+    def test_weak_readings_scatter_as_the_recordings_do(self) -> None:
+        sim = VectorSim()
+        readings = [sim.step(sim._state_ticks).prox_distance_mm for _ in range(400)]
+        mean = sum(readings) / len(readings)
+        spread = math.sqrt(sum((r - mean) ** 2 for r in readings) / len(readings))
+        self.assertAlmostEqual(mean, sim.v["tof_weak_distance_mm"], delta=4.0)
+        self.assertAlmostEqual(spread, sim.v["tof_weak_distance_sd_mm"], delta=4.0)
+        self.assertGreaterEqual(min(readings), sim.v["tof_report_min_mm"])
+
+    def test_forward_range_never_reports_below_its_minimum(self) -> None:
+        near = (35.0, 0.0, 50.0, 10.0, 200.0, 100.0)  # face 20 mm from the sensor
+        sim = _quiet_sim(obstacles=[near])
+        state = sim.advance(0.05)
+        self.assertLess(sim.sim_truth()["tof_hits_mm"][0], sim.v["tof_report_min_mm"])
+        self.assertEqual(state.prox_distance_mm, sim.v["tof_report_min_mm"], "clamped, as the engine clamps it")
+        self.assertTrue(state.prox_found_object, "the engine has no rule against a close object")
 
 
 @unittest.skipUnless(_common.HAVE_MUJOCO, _common.SKIP_REASON)
