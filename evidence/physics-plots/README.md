@@ -1,5 +1,13 @@
 # Vector physics overlays
 
+## Contact orientation and integration step
+
+![Constant-speed migration and recorded-turn checks](pressure-sweep.png)
+
+![Transfer to five SDK turns](pressure-transfer.png)
+
+[Pressure geometry experiments and per-turn data](../endurance-drift/pressure.md)
+
 ## Balanced-wheel pivot and contact geometry
 
 ![Pivot tracks during nine alternating turns](balanced-pivot.png)

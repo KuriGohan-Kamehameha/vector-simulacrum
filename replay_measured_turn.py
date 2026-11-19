@@ -27,7 +27,8 @@ def input_rows(path):
     return rows, time, wheels, gyro, stop
 
 
-def run(rows, time, wheels, span, *, dense=False, include_pose=False, configure=None, observe=None):
+def run(rows, time, wheels, span, *, dense=False, include_pose=False, configure=None, observe=None,
+        step_ms=None):
     values = dict(params.values(params.load(model="vector_2")), **replay.OPEN_TABLE)
     builder = mjcf.build_mjcf
 
@@ -51,6 +52,9 @@ def run(rows, time, wheels, span, *, dense=False, include_pose=False, configure=
         sim = VectorSim(values=values, head_deg=math.degrees(rows[0]["head"]), lift_mm=rows[0]["lift"])
     sim.step(round(replay.PRE_S/sim.dt))
     m, d = sim.model, sim.data
+    if step_ms is not None:
+        # Keep the settled initial state and all physical constraint times fixed.
+        m.opt.timestep = step_ms / 1000
     motors = [m.actuator(side+"_wheel").id for side in ("left", "right")]
     gyro = m.sensor("gyro").adr.item()+2
     dt = m.opt.timestep
