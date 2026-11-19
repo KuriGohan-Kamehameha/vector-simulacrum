@@ -2,6 +2,10 @@
 
 ## Turning and tread contact
 
+![Native encoder and yaw braking overlays](native-wheel-stop.png)
+
+[Four Vector 2.0 stops on the robot clock](../hw-rec-20261119/native-stops.md)
+
 ![Firmware sensor timing through the held-out stops](sensor-timing-braking.png)
 
 [Firmware and SDK trace, phase assumptions, and held-out scores](../hw-rec-20261119/sensor-timing.md)
