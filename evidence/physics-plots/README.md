@@ -1,5 +1,13 @@
 # Vector physics overlays
 
+## Alternating spins and edge detection
+
+![Vector 2.0 turn-by-turn translation](endurance-drift.png)
+
+![Yaw replay and cliff event timing](endurance-timeline.png)
+
+[Run G analysis, input data and turn-by-turn results](../endurance-drift/README.md)
+
 ## Turning and tread contact
 
 ![Hybrid encoder replay of Vector 2.0 stops](hybrid-encoder-replay.png)

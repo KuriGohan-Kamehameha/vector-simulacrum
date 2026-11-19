@@ -27,7 +27,7 @@ def input_rows(path):
     return rows, time, wheels, gyro, stop
 
 
-def run(rows, time, wheels, span, *, dense=False):
+def run(rows, time, wheels, span, *, dense=False, include_pose=False):
     values = dict(params.values(params.load(model="vector_2")), **replay.OPEN_TABLE)
     builder = mjcf.build_mjcf
 
@@ -54,7 +54,7 @@ def run(rows, time, wheels, span, *, dense=False):
     dt = m.opt.timestep
     clock = time[0] + np.arange(math.ceil((time[-1]-time[0])/dt)+1)*dt
     desired = np.column_stack([np.interp(clock, time, wheel) for wheel in wheels.T])
-    output = np.empty((len(clock), 3))
+    output = np.empty((len(clock), 6 if include_pose else 3))
     # Solve only for the two motor torques needed for the next encoder sample.
     # Save/restore all integration state so trial solves never advance the clock.
     spec = mujoco.mjtState.mjSTATE_INTEGRATION
@@ -69,7 +69,9 @@ def run(rows, time, wheels, span, *, dense=False):
     for i in range(len(clock)):
         # Sensor kinematics after the integration step use the updated velocity.
         mujoco.mj_forward(m, d)
-        output[i] = [math.degrees(d.sensordata[gyro]), *sim._wheel_speeds()]
+        output[i, :3] = [math.degrees(d.sensordata[gyro]), *sim._wheel_speeds()]
+        if include_pose:
+            output[i, 3:] = [*sim.pose_mm()[:2], sim._yaw()]
         if i+1 < len(clock):
             mujoco.mj_getState(m, d, saved, spec)
             torque = d.ctrl[motors].copy()
