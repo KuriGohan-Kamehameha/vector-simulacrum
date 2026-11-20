@@ -1,5 +1,11 @@
 # Vector physics overlays
 
+## Opposite headings at two shelf spots
+
+![Camera displacements in shelf and starting robot coordinates](heading-crossover-frames.png)
+
+[Eight measured turns, both 42 mm overlays, corrected See3CAM footage and calibration](../heading-crossover/README.md)
+
 ## Lift-down, lift-up, lift-down spins
 
 ![Camera and model displacements by lift posture](lift-camera-drift.png)

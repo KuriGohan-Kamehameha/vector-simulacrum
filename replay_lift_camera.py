@@ -13,9 +13,9 @@ from replay_pivot import configure_round
 DATA = Path(__file__).resolve().parent / "evidence/lift-camera"
 
 
-def main():
+def main(data=DATA):
     result = []
-    for turn in json.loads((DATA / "turns.json").read_text()):
+    for turn in json.loads((data / "turns.json").read_text()):
         rows = turn["rows"]
         t = np.array([r["t"] for r in rows])
         wheels = np.array([[r["wl"], r["wr"]] for r in rows])
@@ -39,7 +39,7 @@ def main():
             )
             delta = relative_center(out[:, 3:5], out[:, 5])[-1]
             result.append([turn["label"], name, *delta])
-    with (DATA / "replays.csv").open("w") as stream:
+    with (data / "replays.csv").open("w") as stream:
         writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(["turn", "source", "forward_mm", "left_mm"])
         writer.writerows(result)
