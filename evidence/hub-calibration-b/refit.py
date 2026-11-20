@@ -41,7 +41,7 @@ def calc(p,omit=None,face=False,report=False):
  centers=[Rotation.from_rotvec(-cam[:3]).apply(-cam[3:6]) for cam in cameras]
  residuals.append((np.linalg.norm(centers[0]-centers[1])-14.232)/2)
  return diagnostics if report else np.asarray(residuals)
-def center_res(p):
+def center_res(p, omit=None):
  cameras=p[:21].reshape(3,7);poses=p[21:].reshape(3,3)
  out=[]
  for i,cam in enumerate(cameras):
@@ -51,6 +51,8 @@ def center_res(p):
    return v[:,:2]/v[:,2,None]*cam[6]+P[i]
   out.extend(((project(dock)-measured[i])/np.array([1,1,1,1,3])[:,None]).flatten())
   for j,tag in enumerate(tags):
+   if tag == omit:
+    continue
    x,y,a=poses[j];xyz=np.array([[x,y,14.5],[x-48*np.cos(a),y-48*np.sin(a),10.75]])
    centers=[(np.min(v,axis=0)+np.max(v,axis=0))/2 for v in obs[tag][i]]
    out.extend(((project(xyz)-centers)/[1.5,1.5,2.5][i]).flatten())
@@ -58,10 +60,19 @@ def center_res(p):
  return np.asarray(out)
 
 def fit(name='cameras',omit=None,face=False):
- start=least_squares(center_res,seed,x_scale='jac').x
- if name!='cameras': start=np.asarray(json.loads((HERE/'cameras.json').read_text())['parameters'])
+ start=least_squares(center_res,seed,args=(omit,),x_scale='jac').x
+ if name!='cameras' and omit is None: start=np.asarray(json.loads((HERE/'cameras.json').read_text())['parameters'])
  start=least_squares(calc,start,args=(omit,face),x_scale='jac',max_nfev=90).x
  res=least_squares(calc,start,args=(omit,face),loss='soft_l1',x_scale='jac',max_nfev=170)
+ if omit is not None:
+  # Register the omitted robot pose afterward with the fitted cameras fixed.
+  j=tags.index(omit)
+  sl=slice(21+3*j,24+3*j)
+  def register_robot_pose(x):
+   trial=res.x.copy()
+   trial[sl]=x
+   return calc(trial,None,face)
+  res.x[sl]=least_squares(register_robot_pose,seed[sl],loss='soft_l1',x_scale='jac').x
  cams=[dict(rotation=p[:3].tolist(),translation=p[3:6].tolist(),focal_px=p[6],principal_point=P[i].tolist()) for i,p in enumerate(res.x[:21].reshape(3,7))]
  diagnostics=calc(res.x,omit,face,True)
  out=dict(cameras=cams,parameters=res.x.tolist(),B_rms=diagnostics,solver_success=bool(res.success),solver_message=res.message)
