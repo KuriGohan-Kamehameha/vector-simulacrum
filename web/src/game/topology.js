@@ -172,12 +172,21 @@ function addRearShell(body, roof, shellVersion) {
 export function addCrownAndBackpack(head, body, shellVersion) {
   const crown = cover(head, headRoof);
   const cap = capsule(-2.66, -1.54, 2.16, 3.08, 0.34);
+  // Vector 2.0 crown openings, measured in the opposing See3CAM views.
+  // Dimensions are cm in the OBJ frame; the first station is a slot centre.
+  const [first, pitch, bank, width, length] = shellVersion === 2
+    ? [-2.515, 0.208, 0.280, 0.11, 0.36]
+    : [-1.885, 0.32, 0.355, 0.13, 0.53];
   for (let i = 0; i < 5; i++) {
-    for (const y of [-0.62, 0.09]) {
-      cap.holes.push(capsule(-1.95 + i * 0.32, y, 0.13, 0.53, 0.035));
+    for (const y of [-bank, bank]) {
+      cap.holes.push(capsule(first + i * pitch - width / 2, y - length / 2,
+        width, length, 0.035));
     }
   }
-  crown("Vent cavity", capsule(-2.08, -0.72, 1.72, 1.44, 0.1), 0.007, 0.012, 0x101115, 0.85);
+  const cavity = shellVersion === 2
+    ? capsule(first - 0.12, -0.56, 4 * pitch + 0.24, 1.12, 0.07)
+    : capsule(-2.08, -0.72, 1.72, 1.44, 0.1);
+  crown("Vent cavity", cavity, 0.007, 0.012, 0x101115, 0.85);
   crown("Slotted head cover", cap, -0.012, 0.076, 0x58595d, 0.46);
 
   // The SDK body has a cutout under the touch assembly. Bridge it with
