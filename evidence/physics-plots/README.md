@@ -1,5 +1,11 @@
 # Vector physics overlays
 
+## Lift-down, lift-up, lift-down spins
+
+![Camera and model displacements by lift posture](lift-camera-drift.png)
+
+[Six-turn measurements, sensitivity and upright video](../lift-camera/README.md)
+
 ## Independent camera tracking
 
 ![Camera, odometry and two contact models after each spin](camera-rest-drift.png)
