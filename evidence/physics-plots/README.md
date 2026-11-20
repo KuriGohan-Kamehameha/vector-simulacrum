@@ -1,5 +1,11 @@
 # Vector physics overlays
 
+## Shelf tilt from stationary accelerometer samples
+
+![Tilted and flat replays on held-out spot A](shelf-tilt-heldout.png)
+
+[Opposite-heading estimate, contribution and replay errors](../shelf-tilt/README.md)
+
 ## Opposite headings at two shelf spots
 
 ![Camera displacements in shelf and starting robot coordinates](heading-crossover-frames.png)
