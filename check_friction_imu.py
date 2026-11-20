@@ -1,8 +1,10 @@
 """Audit the effect of head posture on the stationary and turning IMU data."""
 
 import json
+
 import numpy as np
-from replay_lateral_friction import setup, read, OUT, TILT, DATA, BLOCKS, basis
+
+from replay_lateral_friction import BLOCKS, DATA, OUT, TILT, basis, read, setup
 
 hs, up = setup()
 
