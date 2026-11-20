@@ -103,3 +103,7 @@
 [Optical head and chassis check](../face-tag-trial/README.md) includes matched stock-crown and simulator views, the held-out vent-placement check, side-insert tracking from opposite headings and the fixed-backpack pitch comparison.
 
 The [P2Y8 three-camera survey](../three-camera-survey/README.md) includes the full orbit coverage, held-out silhouette and head-angle checks, crown and microphone reprojections, and the revised Vector 2.0 crown rendering.
+
+### Longitudinal contact inset at the recorded posture
+
+The P2Y8 yaw fit selected 3.75 mm per end and reduced yaw error on all four held-out C7K8 spins. The camera pivot and roll/pitch measurements still disagree with the model. [Overlays, selection sweep and replay data](../recorded-pose-inset/README.md)
