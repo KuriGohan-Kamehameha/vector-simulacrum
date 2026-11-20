@@ -169,6 +169,45 @@ function addRearShell(body, roof, shellVersion) {
 
 }
 
+// A quarter-round return connects the gray roof to the dark throat of each vent.
+// The measured dark core is narrower than the outline of its molded opening.
+function addVentRims(head, centers, width, length) {
+  const positions = [], indices = [];
+  const radius = 0.016; // cm, estimated from the half-contrast width
+  for (const [cx, cy] of centers) {
+    let previous = 0;
+    for (let row = 0; row <= 6; row++) {
+      const theta = Math.min(row, 5) * Math.PI / 10;
+      const inset = radius * Math.sin(theta);
+      const height = row === 6 ? 0.018 : 0.064 - radius * (1 - Math.cos(theta));
+      const w = width - 2 * inset, h = length - 2 * inset;
+      const ring = capsule(cx - w / 2, cy - h / 2, w, h, 0.035 - inset).getPoints(7);
+      // The closed shape repeats its first point. Share that vertex at the seam.
+      ring.pop();
+      const start = positions.length / 3;
+      for (const { x, y } of ring) {
+        positions.push(x, y, headRoof(x, y) + height);
+      }
+      if (row) {
+        for (let j = 0; j < ring.length; j++) {
+          const next = (j + 1) % ring.length;
+          indices.push(previous + j, previous + next, start + j,
+            previous + next, start + next, start + j);
+        }
+      }
+      previous = start;
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const rims = new THREE.Mesh(geometry,
+    new THREE.MeshStandardMaterial({ color: 0x58595d, roughness: 0.46 }));
+  rims.name = "Crown vent returns";
+  head.add(rims);
+}
+
 export function addCrownAndBackpack(head, body, shellVersion) {
   const crown = cover(head, headRoof);
   const cap = capsule(-2.66, -1.54, 2.16, 3.08, 0.34);
@@ -177,12 +216,15 @@ export function addCrownAndBackpack(head, body, shellVersion) {
   const [first, pitch, bank, width, length] = shellVersion === 2
     ? [-2.515, 0.208, 0.280, 0.11, 0.36]
     : [-1.885, 0.32, 0.355, 0.13, 0.53];
+  const centers = [];
   for (let i = 0; i < 5; i++) {
     for (const y of [-bank, bank]) {
+      centers.push([first + i * pitch, y]);
       cap.holes.push(capsule(first + i * pitch - width / 2, y - length / 2,
         width, length, 0.035));
     }
   }
+  if (shellVersion === 2) addVentRims(head, centers, width, length);
   const cavity = shellVersion === 2
     ? capsule(first - 0.12, -0.56, 4 * pitch + 0.24, 1.12, 0.07)
     : capsule(-2.08, -0.72, 1.72, 1.44, 0.1);

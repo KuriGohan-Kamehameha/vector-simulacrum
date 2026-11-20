@@ -101,3 +101,5 @@
 [P2Y8 stationary head sweeps](../head-sweep/README.md) separate head posture, chassis offset, approach direction and a shelf-frame component, with opposite and sideways heading tests at held-out A.
 
 [Optical head and chassis check](../face-tag-trial/README.md) includes matched stock-crown and simulator views, the held-out vent-placement check, side-insert tracking from opposite headings and the fixed-backpack pitch comparison.
+
+The [P2Y8 three-camera survey](../three-camera-survey/README.md) includes the full orbit coverage, held-out silhouette and head-angle checks, crown and microphone reprojections, and the revised Vector 2.0 crown rendering.
