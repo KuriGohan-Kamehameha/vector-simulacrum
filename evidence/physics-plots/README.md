@@ -95,3 +95,5 @@
 ![Unloaded lift timing](vector-unloaded-lift.png)
 
 [Head, lift, shell and tread findings](../stock-shell-physics-20261118.md)
+
+[P2Y8 lateral friction and head posture](../lateral-friction/README.md) compares the B friction sweep with held-out A camera endpoints and gyro traces, including a level-shelf control.
