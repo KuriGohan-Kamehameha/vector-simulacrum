@@ -93,6 +93,10 @@ function addRearShell(body, roof, shellVersion) {
       + 0.23 * smooth(railT, 0.56, 1) : stockWidth;
     const pivotBand = smooth(z, 1.88, 2.38) * (1 - smooth(z, 4.9, 5.82));
     const greyEdge = 1 - 0.16 * pivotBand;
+    // On the 2.0 the rear shoulders begin rounding closer to the badge.
+    // Blend to a quadratic section while keeping the centreline and lip fixed.
+    const shoulderBlend = shellVersion === 2
+      ? smooth(z, 2.5, 3.6) * (1 - smooth(z, 4.5, 5.5)) : 0;
     for (let col = -2; col <= cols + 2; col++) {
       const across = 2 * THREE.MathUtils.clamp(col, 0, cols) / cols - 1;
       // Keep two mesh strips on the colour boundary as the glossy return narrows.
@@ -107,7 +111,8 @@ function addRearShell(body, roof, shellVersion) {
       // transverse radius only on the approach to either tread.
       const flank = Math.max(0, (side - 0.58) / 0.42) ** 2;
       const flatPanel = under ? smooth(z, 0.12, 0.48) * (1 - smooth(z, shoulder.y, 2.9)) : 0;
-      const roll = (1 - blend) * THREE.MathUtils.lerp(0.11 * u ** 2 + 0.25 * u ** 4,
+      const section = 0.11 * u ** 2 + 0.25 * THREE.MathUtils.lerp(u ** 4, u ** 2, shoulderBlend);
+      const roll = (1 - blend) * THREE.MathUtils.lerp(section,
         0.36 * flank, flatPanel);
       // Rounded inverted-U relief flows into the lower panel across the parting line.
       const arch = 3.07 - 0.34 * (Math.abs(y) / 0.65) ** 4;
