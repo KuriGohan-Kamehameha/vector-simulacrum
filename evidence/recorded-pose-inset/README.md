@@ -57,3 +57,5 @@ python "$e/plot.py"
 ```
 
 The reference setup patches a temporary copy of the public source. The public recordings reproduced the scored CSVs and signed traces byte for byte. The plotting script uses the included CSVs. [P2Y8 grid and per-spin metrics](metrics.csv) · [P2Y8 signed traces](traces.csv) · [C7K8 per-spin metrics](c7_scores.csv) · [C7K8 signed traces](c7_traces.csv)
+
+A subsequent peer comparison crossed collision settings, checked gyro bandwidth, and tested a second optical pivot estimator. It qualifies the physical interpretation of the raw roll/pitch ratios above. [Peer comparison and corrected interpretation](peer-check/README.md)
