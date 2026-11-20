@@ -45,3 +45,5 @@ The [coarse visual hull](orbit-hull.ply) uses a 1.5 mm grid, SDK yaw, dock calib
 The masked SIFT reconstruction of the combined fixed-head data split into a six-view See3CAM component (96 points, 1.00 px mean reprojection error) and a nine-view phone component (99 points, 0.85 px). These are partial sparse models. The visual hull uses the independently calibrated camera geometry and does not depend on joining those components. Full-resolution originals and SDK logs are in the household capture archive. Only robot crops, masks, derived geometry and measurements are published here.
 
 The [opposite-heading head-raise check at A](../head-landmark-a/) compares a second moving landmark against fixed backpack patches and stationary IMU measurements.
+
+The [wheel-calibrated B camera matrices and held-out A measurements](../hub-calibration-b/) revisit the shorter dock-derived wheelbase and the fixed backpack microphone spacing.
